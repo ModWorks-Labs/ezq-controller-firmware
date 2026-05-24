@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EZQ State Machine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f6f3ec;
+    --bg-soft: #faf8f3;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #5a5a55;
+    --ink-mute: #8a8a82;
+    --line: #cfc9bd;
+    --line-soft: #e3ddd1;
+
+    --op: #b07a2a;
+    --op-bg: #fdf6ea;
+    --op-line: #d4a35a;
+
+    --svc: #4a5a72;
+    --svc-bg: #eef2f8;
+    --svc-line: #7a8aa2;
+
+    --fault: #a23838;
+    --fault-bg: #fbeeee;
+    --fault-line: #c66060;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Manrope', sans-serif;
+    min-height: 100vh;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    padding: 48px 32px 80px;
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(176, 122, 42, 0.04), transparent 50%),
+      radial-gradient(circle at 90% 90%, rgba(74, 90, 114, 0.04), transparent 50%);
+  }
+
+  /* ── HEADER ── */
+  header {
+    max-width: 900px;
+    margin: 0 auto 48px;
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 20px;
+  }
+
+  h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 38px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+
+  h1 em {
+    color: var(--op);
+    font-style: italic;
+  }
+
+  .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-mute);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-left: auto;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    max-width: 900px;
+    margin: 0 auto 32px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.03em;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+  .legend-swatch.op { background: var(--op-bg); border-color: var(--op-line); }
+  .legend-swatch.svc { background: var(--svc-bg); border-color: var(--svc-line); }
+  .legend-swatch.fault { background: var(--fault-bg); border-color: var(--fault-line); }
+
+  .legend-hint {
+    margin-left: auto;
+    color: var(--ink-mute);
+    font-style: italic;
+    font-family: 'Manrope', sans-serif;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+  }
+
+  /* ── FLOWCHART ── */
+  .canvas {
+    position: relative;
+    width: 820px;
+    height: 1080px;
+    margin: 0 auto;
+  }
+
+  .canvas svg.connectors {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .connectors path {
+    fill: none;
+    stroke: var(--line);
+    stroke-width: 1.4;
+  }
+
+  .connectors path.fault-edge {
+    stroke: var(--fault-line);
+    stroke-dasharray: 4 4;
+    opacity: 0.7;
+  }
+
+  .connectors text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    fill: var(--ink-mute);
+    letter-spacing: 0.03em;
+  }
+
+  .connectors marker path {
+    fill: var(--line);
+    stroke: none;
+  }
+  .connectors marker.fault path {
+    fill: var(--fault-line);
+  }
+
+  /* ── STATE CARDS ── */
+  .state-card {
+    position: absolute;
+    width: 180px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left-width: 3px;
+    border-radius: 4px;
+    padding: 14px 16px;
+    cursor: pointer;
+    z-index: 2;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04);
+    text-align: left;
+    font-family: inherit;
+  }
+
+  .state-card:hover {
+    transform: translate(-50%, -50%) translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  }
+
+  .state-card {
+    transform: translate(-50%, -50%);
+  }
+
+  .state-card .name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+
+  .state-card .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 6px;
+    color: var(--ink-mute);
+  }
+
+  .state-card.op  { border-left-color: var(--op-line); background: var(--card); }
+  .state-card.op:hover  { border-color: var(--op-line); }
+  .state-card.op .tag { color: var(--op); }
+
+  .state-card.svc { border-left-color: var(--svc-line); }
+  .state-card.svc:hover { border-color: var(--svc-line); }
+  .state-card.svc .tag { color: var(--svc); }
+
+  .state-card.fault { border-left-color: var(--fault-line); background: var(--fault-bg); }
+  .state-card.fault:hover { border-color: var(--fault-line); }
+  .state-card.fault .tag { color: var(--fault); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 26, 26, 0.4);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+  }
+
+  .modal-overlay.active {
+    display: flex;
+    animation: fadeIn 0.18s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal {
+    background: var(--card);
+    border-radius: 6px;
+    max-width: 620px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 36px 40px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+    position: relative;
+    animation: pop 0.22s ease;
+  }
+
+  @keyframes pop {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    transition: all 0.15s ease;
+  }
+  .modal-close:hover {
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .modal-cat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .modal-cat.op { color: var(--op); }
+  .modal-cat.svc { color: var(--svc); }
+  .modal-cat.fault { color: var(--fault); }
+
+  .modal h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 16px;
+    color: var(--ink);
+  }
+
+  .modal .overview {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .modal h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 10px;
+    margin-top: 22px;
+  }
+  .modal h3:first-of-type { margin-top: 0; }
+
+  .modal ul {
+    list-style: none;
+  }
+
+  .modal ul li {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    padding: 6px 0 6px 18px;
+    position: relative;
+  }
+
+  .modal ul li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 6px;
+    height: 1px;
+    background: var(--line);
+  }
+
+  /* mobile fallback */
+  @media (max-width: 880px) {
+    body { padding: 24px 12px; }
+    .canvas { transform: scale(0.65); transform-origin: top center; }
+    header { flex-direction: column; gap: 8px; align-items: flex-start; }
+    .meta { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>EZQ <em>State Machine</em></h1>
+  <span class="meta">Rev B · v0.1</span>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch op"></div><span>OPERATIONAL</span></div>
+  <div class="legend-item"><div class="legend-swatch svc"></div><span>SERVICE</span></div>
+  <div class="legend-item"><div class="legend-swatch fault"></div><span>FAULT (LATCHED)</span></div>
+  <span class="legend-hint">click any state for details</span>
+</div>
+
+<div class="canvas">
+  <svg class="connectors" viewBox="0 0 820 1080" preserveAspectRatio="none">
+    <defs>
+      <marker id="arr" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z"/>
+      </marker>
+      <marker id="arrf" class="fault" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z"/>
+      </marker>
+    </defs>
+
+    <!-- BOOT → UPDATE_FW -->
+    <path d="M 350,100 L 220,180" marker-end="url(#arr)"/>
+    <text x="240" y="135" transform="rotate(-22 240 135)">update avail</text>
+
+    <!-- BOOT → READY_IDLE (straight down through middle) -->
+    <path d="M 410,128 L 410,290" marker-end="url(#arr)"/>
+    <text x="418" y="210">no update</text>
+
+    <!-- BOOT → FAULT (curve far right) -->
+    <path class="fault-edge" d="M 470,100 C 650,100 760,400 760,940 L 510,940" marker-end="url(#arrf)"/>
+    <text x="690" y="280" fill="#a23838">init fail</text>
+
+    <!-- UPDATE_FW → BOOT (reboot loop) -->
+    <path d="M 220,180 C 100,140 100,80 350,80" marker-end="url(#arr)"/>
+    <text x="100" y="105">reboot</text>
+
+    <!-- UPDATE_FW → READY_IDLE (download fail) -->
+    <path d="M 230,220 L 360,310" marker-end="url(#arr)"/>
+    <text x="240" y="280" transform="rotate(34 240 280)">dl fail</text>
+
+    <!-- READY_IDLE ↔ SLEEP_IDLE -->
+    <path d="M 320,340 L 200,440" marker-end="url(#arr)"/>
+    <text x="200" y="380" transform="rotate(-40 200 380)">timeout</text>
+    <path d="M 215,440 L 335,340" marker-end="url(#arr)"/>
+    <text x="260" y="410" transform="rotate(-40 260 410)">btn wake</text>
+
+    <!-- READY_IDLE ↔ BLOWER_MODE -->
+    <path d="M 500,340 L 620,440" marker-end="url(#arr)"/>
+    <text x="500" y="380" transform="rotate(40 500 380)">short press</text>
+    <path d="M 605,440 L 485,340" marker-end="url(#arr)"/>
+    <text x="540" y="415" transform="rotate(40 540 415)">short press</text>
+
+    <!-- READY_IDLE → IGNITION_CYCLE -->
+    <path d="M 410,365 L 410,545" marker-end="url(#arr)"/>
+    <text x="418" y="455">long press</text>
+
+    <!-- IGNITION_CYCLE → READY_IDLE (cycle complete / countdown abort) -->
+    <path d="M 380,545 C 250,500 250,420 360,360" marker-end="url(#arr)"/>
+    <text x="245" y="465">cycle done</text>
+    <text x="245" y="478">or countdown abort</text>
+
+    <!-- IGNITION_CYCLE → ABORT_COOLDOWN -->
+    <path d="M 410,600 L 410,755" marker-end="url(#arr)"/>
+    <text x="418" y="680">abort during GP</text>
+
+    <!-- ABORT_COOLDOWN → READY_IDLE (soft) -->
+    <path d="M 440,755 C 580,720 580,500 510,360" marker-end="url(#arr)"/>
+    <text x="565" y="620">soft</text>
+
+    <!-- ABORT_COOLDOWN → FAULT (fault path) -->
+    <path class="fault-edge" d="M 410,810 L 410,910" marker-end="url(#arrf)"/>
+    <text x="418" y="865" fill="#a23838">fault</text>
+
+    <!-- Global fault edges hint -->
+    <text x="40" y="940" fill="#a23838" font-style="italic">global faults outside GP route here directly</text>
+  </svg>
+
+  <button class="state-card op"  style="left:410px; top:100px;"  data-state="BOOT">
+    <div class="name">BOOT</div>
+    <div class="tag">init</div>
+  </button>
+
+  <button class="state-card svc" style="left:170px; top:200px;"  data-state="UPDATE_FW">
+    <div class="name">UPDATE_FW</div>
+    <div class="tag">service</div>
+  </button>
+
+  <button class="state-card op"  style="left:410px; top:340px;"  data-state="READY_IDLE">
+    <div class="name">READY_IDLE</div>
+    <div class="tag">hub</div>
+  </button>
+
+  <button class="state-card op"  style="left:150px; top:470px;"  data-state="SLEEP_IDLE">
+    <div class="name">SLEEP_IDLE</div>
+    <div class="tag">low-power</div>
+  </button>
+
+  <button class="state-card op"  style="left:670px; top:470px;"  data-state="BLOWER_MODE">
+    <div class="name">BLOWER_MODE</div>
+    <div class="tag">fan only</div>
+  </button>
+
+  <button class="state-card op"  style="left:410px; top:600px;"  data-state="IGNITION_CYCLE">
+    <div class="name">IGNITION_CYCLE</div>
+    <div class="tag">core</div>
+  </button>
+
+  <button class="state-card op"  style="left:410px; top:780px;"  data-state="ABORT_COOLDOWN">
+    <div class="name">ABORT_COOLDOWN</div>
+    <div class="tag">mandatory</div>
+  </button>
+
+  <button class="state-card fault" style="left:410px; top:940px;" data-state="FAULT">
+    <div class="name">FAULT</div>
+    <div class="tag">latched</div>
+  </button>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-body">
+    <button class="modal-close" id="modal-close" aria-label="close">×</button>
+    <div class="modal-cat" id="modal-cat"></div>
+    <h2 id="modal-title"></h2>
+    <p class="overview" id="modal-overview"></p>
+    <h3>Enter</h3>
+    <ul id="modal-enter"></ul>
+    <h3>Update</h3>
+    <ul id="modal-update"></ul>
+    <h3>Exit</h3>
+    <ul id="modal-exit"></ul>
+  </div>
+</div>
+
+<script>
+const STATES = {
+  BOOT: {
+    category: 'operational',
+    overview: 'The initial state on power-up. Runs once per boot to configure hardware, initialize peripherals, and check for a firmware update before handing off to normal operation. Transitions to UPDATE_FW if an update is available, READY_IDLE otherwise, or FAULT if a critical init step fails.',
+    enter: [
+      'Configure GPIO pin directions and initial states',
+      'Configure PWM channels for glow plug, fan, LED, and buzzer',
+      'Initialize I2C and verify temperature sensor presence',
+      'Initialize NVS and load saved config',
+      'Play boot jingle, set LED to boot indicator'
+    ],
+    update: [
+      'Bring up WiFi (if provisioned) and run SNTP time sync',
+      'Check OTA manifest for available firmware update',
+      'Validate temperature sensor reading',
+      'Validate battery voltage reading',
+      'On update available, transition to UPDATE_FW',
+      'On all checks passing and no update available, transition to READY_IDLE',
+      'On critical failure, transition to FAULT'
+    ],
+    exit: ['No teardown needed, hand off to next state']
+  },
+  UPDATE_FW: {
+    category: 'service',
+    overview: 'Service state entered from BOOT only when the OTA manifest check found a newer firmware version. Downloads the new firmware image, writes it to the inactive OTA slot, and reboots into it. Auto-rollback handles a failed boot of the new image at the bootloader level, outside this state.',
+    enter: [
+      'Set LED to update indicator (TBD pattern, distinct from boot/ready)',
+      'Begin HTTPS download of new firmware image',
+      'Optional: play update-start beep'
+    ],
+    update: [
+      'Stream firmware to inactive OTA slot',
+      'Verify image integrity on completion',
+      'On verified write, mark new slot as boot target and trigger reboot',
+      'On download or verification failure, transition to READY_IDLE (current firmware remains active)'
+    ],
+    exit: [
+      'Reboot in the success path (this state ends with a chip reset, not a normal transition)',
+      'On failure path, no teardown needed'
+    ]
+  },
+  READY_IDLE: {
+    category: 'operational',
+    overview: 'The default standby state. Device is fully operational and waiting for user input. Branches to BLOWER_MODE, IGNITION_CYCLE, or SLEEP_IDLE depending on button input or inactivity timeout.',
+    enter: [
+      'Set LED to ready indicator (green)',
+      'Start inactivity timer'
+    ],
+    update: [
+      'Monitor button: short press, transition to BLOWER_MODE',
+      'Monitor button: long press (with hold feedback), transition to IGNITION_CYCLE',
+      'On inactivity timeout, transition to SLEEP_IDLE'
+    ],
+    exit: ['Stop inactivity timer']
+  },
+  SLEEP_IDLE: {
+    category: 'operational',
+    overview: 'Low-power standby entered after inactivity in READY_IDLE. Device is in light sleep with the button configured as a wake source. Button press interrupt wakes the device back to READY_IDLE.',
+    enter: [
+      'Turn LED off',
+      'Configure button as wake source (GPIO interrupt)',
+      'Enter light sleep (PWM peripherals auto-disable)'
+    ],
+    update: [
+      'Dormant while in light sleep',
+      'On button wake interrupt, transition to READY_IDLE'
+    ],
+    exit: ['Re-enable any peripherals that were disabled by light sleep']
+  },
+  BLOWER_MODE: {
+    category: 'operational',
+    overview: 'Manual fan-only mode. Fan runs at 100% indefinitely until the user presses the button again. No GP involvement, no timeout.',
+    enter: [
+      'Set LED to blower indicator (blue)',
+      'Play mode-entry beep',
+      'Command fan to 100%'
+    ],
+    update: [
+      'Monitor button: short press, transition to READY_IDLE'
+    ],
+    exit: [
+      'Command fan off',
+      'Play mode-exit beep'
+    ]
+  },
+  IGNITION_CYCLE: {
+    category: 'operational',
+    overview: 'The core function of the device. Runs the full ignition sequence from countdown through GP/fan execution to post-cycle wind-down, driven by the active profile loaded from storage. Internal phase logic (countdown, active cycle, post-cycle) lives inside this state.',
+    enter: [
+      'Set LED to ignition indicator (orange)',
+      'Load active profile from storage',
+      'Run start-of-cycle countdown sequence (countdown beeps, high-pitched start beep)',
+      'Initialize internal cycle phase tracking'
+    ],
+    update: [
+      'Advance through cycle phases per active profile (GP drive, fan throttle, overlap handling)',
+      'Drive GP and fan outputs per phase requirements',
+      'Monitor button: any press during countdown, cancel back to READY_IDLE (no cooldown needed, GP has not fired)',
+      'Monitor button: any press during GP-active phase, transition to ABORT_COOLDOWN',
+      'After main cycle complete, enter post-cycle phase (fan continues, periodic reminder beeps)',
+      'Post-cycle button press, transition to READY_IDLE'
+    ],
+    exit: [
+      'Ensure GP is off',
+      'Ensure fan is off (unless transitioning to ABORT_COOLDOWN, which will manage fan itself)'
+    ]
+  },
+  ABORT_COOLDOWN: {
+    category: 'operational',
+    overview: 'Mandatory fan-driven cooldown entered specifically when an ignition cycle is aborted during active glow plug drive (soft abort by button, fault abort by global detector). Does not apply to aborts during the fan-only post-cycle phase, since there is no GP to cool. Cannot be skipped or shortened by user input. Routes to READY_IDLE on soft aborts, or FAULT on fault-triggered aborts.',
+    enter: [
+      'Force GP off (hard guarantee)',
+      'Command fan to cooldown duty',
+      'Record abort reason (soft or fault)',
+      'Set LED to cooldown indicator'
+    ],
+    update: [
+      'Run fan for the configured cooldown duration',
+      'Ignore button input'
+    ],
+    exit: [
+      'Command fan off',
+      'Soft abort: transition to READY_IDLE',
+      'Fault abort: transition to FAULT'
+    ]
+  },
+  FAULT: {
+    category: 'fault',
+    overview: 'Latched terminal state entered when a critical fault occurs (over-temp, battery undervoltage, critical init failure). All outputs are forced safe, and the device cannot recover without a power cycle. No transitions out.',
+    enter: [
+      'Force all outputs off (GP, fan)',
+      'Set LED to fault indicator (red)',
+      'Play fault buzzer pattern',
+      'Record fault cause'
+    ],
+    update: [
+      'Hold all outputs safe',
+      'Maintain fault LED and buzzer indication',
+      'No transitions evaluated'
+    ],
+    exit: ['Never runs, only cleared by power cycle']
+  }
+};
+
+const overlay = document.getElementById('modal-overlay');
+const closeBtn = document.getElementById('modal-close');
+const titleEl = document.getElementById('modal-title');
+const catEl = document.getElementById('modal-cat');
+const overviewEl = document.getElementById('modal-overview');
+const enterEl = document.getElementById('modal-enter');
+const updateEl = document.getElementById('modal-update');
+const exitEl = document.getElementById('modal-exit');
+
+function openModal(stateName) {
+  const s = STATES[stateName];
+  if (!s) return;
+  titleEl.textContent = stateName;
+  catEl.textContent = s.category;
+  catEl.className = 'modal-cat ' + (s.category === 'operational' ? 'op' : s.category === 'service' ? 'svc' : 'fault');
+  overviewEl.textContent = s.overview;
+  enterEl.innerHTML = s.enter.map(li => `<li>${li}</li>`).join('');
+  updateEl.innerHTML = s.update.map(li => `<li>${li}</li>`).join('');
+  exitEl.innerHTML = s.exit.map(li => `<li>${li}</li>`).join('');
+  overlay.classList.add('active');
+}
+
+function closeModal() {
+  overlay.classList.remove('active');
+}
+
+document.querySelectorAll('.state-card').forEach(card => {
+  card.addEventListener('click', () => openModal(card.dataset.state));
+});
+
+closeBtn.addEventListener('click', closeModal);
+overlay.addEventListener('click', (e) => {
+  if (e.target === overlay) closeModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+</script>
+
+</body>
+</html>
