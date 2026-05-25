@@ -15,9 +15,9 @@ Use this after release automation and cloud OTA are working to validate reliabil
 
 ## Sequential Updates
 
-- [ ] Perform at least 3 version bumps in a row
-- [ ] Confirm each update advances one version at a time
-- [ ] Confirm no manual OTA flash is needed between versions
+- [x] Perform at least 3 version bumps in a row
+- [x] Confirm each update advances one version at a time
+- [x] Confirm no manual OTA flash is needed between versions
 
 ## Offline / Network Failure
 
