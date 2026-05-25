@@ -342,24 +342,6 @@ bool resolve_target_from_manifest(cJSON *root, UpdateTarget &target, std::string
   return parse_target_object(board, unit_identity::kBoardId, target, message);
 }
 
-std::string to_hex_string(const uint8_t *bytes, std::size_t length) {
-  static constexpr char kHex[] = "0123456789abcdef";
-  std::string output;
-  output.resize(length * 2);
-  for (std::size_t index = 0; index < length; ++index) {
-    output[index * 2] = kHex[(bytes[index] >> 4) & 0x0F];
-    output[index * 2 + 1] = kHex[bytes[index] & 0x0F];
-  }
-  return output;
-}
-
-std::string lower_copy(std::string value) {
-  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-    return static_cast<char>(std::tolower(ch));
-  });
-  return value;
-}
-
 bool system_time_is_reasonable() {
   time_t now = 0;
   time(&now);
@@ -410,32 +392,6 @@ bool ensure_time_synced(std::string &message) {
   char buffer[64] = {};
   strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &time_info);
   ESP_LOGI(kTag, "SNTP time sync complete: %s", buffer);
-  return true;
-}
-
-bool verify_partition_sha256(const esp_partition_t *partition,
-                             const std::string &expected_sha256,
-                             std::string &message) {
-  if (partition == nullptr) {
-    message = "missing_update_partition";
-    return false;
-  }
-
-  std::array<uint8_t, 32> digest = {};
-  const esp_err_t err = esp_partition_get_sha256(partition, digest.data());
-  if (err != ESP_OK) {
-    message = std::string("partition_sha256_failed:") + esp_err_to_name(err);
-    return false;
-  }
-
-  const std::string actual = to_hex_string(digest.data(), digest.size());
-  if (lower_copy(actual) != lower_copy(trim_copy(expected_sha256))) {
-    message = "sha256_mismatch";
-    ESP_LOGE(kTag, "OTA image SHA mismatch: expected=%s actual=%s",
-             expected_sha256.c_str(), actual.c_str());
-    return false;
-  }
-
   return true;
 }
 
@@ -594,9 +550,6 @@ bool perform_pending_update() {
     return false;
   }
 
-  const esp_partition_t *target_partition = esp_ota_get_next_update_partition(nullptr);
-  const esp_partition_t *running_partition = esp_ota_get_running_partition();
-
   esp_http_client_config_t http_config = {};
   http_config.url = g_target.firmware_url.c_str();
   http_config.timeout_ms = kHttpTimeoutMs;
@@ -610,6 +563,20 @@ bool perform_pending_update() {
   esp_err_t err = esp_https_ota_begin(&ota_config, &handle);
   if (err != ESP_OK) {
     set_result("ota_begin_failed", esp_err_to_name(err));
+    return false;
+  }
+
+  esp_app_desc_t new_app_info = {};
+  err = esp_https_ota_get_img_desc(handle, &new_app_info);
+  if (err != ESP_OK) {
+    esp_https_ota_abort(handle);
+    set_result("ota_header_failed", esp_err_to_name(err));
+    return false;
+  }
+
+  if (std::string(new_app_info.version) != g_target.version) {
+    esp_https_ota_abort(handle);
+    set_result("ota_version_mismatch", "Downloaded image version does not match manifest.");
     return false;
   }
 
@@ -638,19 +605,18 @@ bool perform_pending_update() {
     return false;
   }
 
+  const int image_size = esp_https_ota_get_image_size(handle);
+  if (image_size > 0 && g_target.size > 0 && image_size != g_target.size) {
+    g_status.ota_in_progress = false;
+    esp_https_ota_abort(handle);
+    set_result("ota_size_mismatch", "Downloaded image size does not match manifest.");
+    return false;
+  }
+
   err = esp_https_ota_finish(handle);
   g_status.ota_in_progress = false;
   if (err != ESP_OK) {
     set_result("ota_finish_failed", esp_err_to_name(err));
-    return false;
-  }
-
-  std::string verify_message;
-  if (!verify_partition_sha256(target_partition, g_target.sha256, verify_message)) {
-    if (running_partition != nullptr) {
-      esp_ota_set_boot_partition(running_partition);
-    }
-    set_result("ota_verify_failed", verify_message);
     return false;
   }
 
