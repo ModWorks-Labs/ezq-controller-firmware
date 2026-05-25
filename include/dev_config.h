@@ -18,6 +18,6 @@ inline constexpr int kUpdateCheckWifiWaitMs = 10000;
 inline constexpr int kUpdateConfirmStableMs = 10000;
 inline constexpr int kUpdateTimeSyncWaitMs = 10000;
 inline constexpr char kUpdateManifestUrl[] =
-    "https://raw.githubusercontent.com/ModWorks-Labs/ezq-controller-firmware/main/ezq-update-manifest.json";
+    "https://raw.githubusercontent.com/ModWorks-Labs/ezq-controller-firmware/main/release/ezq-update-manifest.json";
 
 }  // namespace dev_config

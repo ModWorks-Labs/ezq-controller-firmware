@@ -13,7 +13,7 @@ If any part of the update check fails, the firmware continues normal startup and
 
 ## Version Source
 
-The canonical firmware version is stored in `version.txt`.
+The canonical firmware version is stored in `release/version.txt`.
 
 That value is injected into `esp_app_desc.version` at build time and is the version string used
 for cloud update comparison.
@@ -27,7 +27,7 @@ Supported format is semver, including prerelease suffixes like:
 
 The device fetches a fixed manifest URL from the default branch:
 
-`https://raw.githubusercontent.com/ModWorks-Labs/ezq-controller-firmware/main/ezq-update-manifest.json`
+`https://raw.githubusercontent.com/ModWorks-Labs/ezq-controller-firmware/main/release/ezq-update-manifest.json`
 
 The expected schema is shown in `manifests/ezq-update-manifest.template.json`.
 
@@ -73,17 +73,18 @@ previous OTA slot.
 
 For each release:
 
-1. update `version.txt`
-2. build the firmware image
-3. compute SHA-256 of the `.bin`
-4. publish the firmware asset
-5. generate `ezq-update-manifest.json`
-6. commit `ezq-update-manifest.json` to the repo default branch
-7. attach the firmware asset to the GitHub release
+1. run `python utils/prepare_release.py <semver>`
+2. commit `release/version.txt`
+3. commit `release/ezq-update-manifest.json`
+4. commit the staged firmware asset in `release/`
+5. push to the repo default branch
 
 Suggested firmware asset naming:
 
 `ezq-controller-firmware_EZQ-CTLR-B_<version>.bin`
+
+The release prep script keeps the live manifest and current firmware asset in `release/` so the
+repo root stays clear.
 
 The v1 updater only modifies the OTA app slots.
 

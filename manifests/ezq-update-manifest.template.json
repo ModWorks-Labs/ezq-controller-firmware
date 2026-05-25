@@ -5,7 +5,7 @@
   "boards": {
     "EZQ-CTLR-B": {
       "version": "1.1.0",
-      "firmware_url": "https://github.com/ModWorks-Labs/ezq-controller-firmware/releases/download/v1.1.0/ezq-controller-firmware_EZQ-CTLR-B_1.1.0.bin",
+      "firmware_url": "https://raw.githubusercontent.com/ModWorks-Labs/ezq-controller-firmware/main/release/ezq-controller-firmware_EZQ-CTLR-B_1.1.0.bin",
       "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "size": 1457712
     }
@@ -13,7 +13,7 @@
   "unit_overrides": {
     "EZQ-CTLR-B-0006": {
       "version": "1.1.1",
-      "firmware_url": "https://github.com/ModWorks-Labs/ezq-controller-firmware/releases/download/v1.1.1/ezq-controller-firmware_EZQ-CTLR-B_1.1.1.bin",
+      "firmware_url": "https://raw.githubusercontent.com/ModWorks-Labs/ezq-controller-firmware/main/release/ezq-controller-firmware_EZQ-CTLR-B_1.1.1.bin",
       "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
       "size": 1459000
     }
