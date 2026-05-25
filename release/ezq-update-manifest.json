@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-05-25T21:51:51Z",
+  "generated_at": "2026-05-25T21:56:15Z",
   "channel": "stable",
   "boards": {
     "EZQ-CTLR-B": {
-      "version": "1.1.0-alpha.4",
-      "firmware_url": "https://raw.githubusercontent.com/ModWorks-Labs/ezq-controller-firmware/main/release/ezq-controller-firmware_EZQ-CTLR-B_1.1.0-alpha.4.bin",
-      "sha256": "88c634bd1af9423c221df52f92de3d6ecbfcb72c140c2b1fbdc23ef1e387e8ea",
+      "version": "1.1.0-alpha.5",
+      "firmware_url": "https://raw.githubusercontent.com/ModWorks-Labs/ezq-controller-firmware/main/release/ezq-controller-firmware_EZQ-CTLR-B_1.1.0-alpha.5.bin",
+      "sha256": "7c18107b4e7502fbd526380a512974bd77b5ed91e8e1bc5eedfd62f4f8f6f358",
       "size": 1463760
     }
   }
