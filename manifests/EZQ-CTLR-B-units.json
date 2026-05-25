@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "project_code": "EZQ",
+  "board_code": "CTLR",
+  "board_revision": "B",
+  "board_id": "EZQ-CTLR-B",
+  "unit_id_format": "PROJ-BRD-REV-SN",
+  "serial_scope": "board_code",
+  "serial_scope_note": "Serial numbers accumulate across controller boards regardless of revision. Rev B starts at 0006 because 0001-0005 were Rev A controller boards.",
+  "mac_format": "AA:BB:CC:DD:EE:FF",
+  "instructions": "Read the factory MAC from the debug console with the 'mac' command and fill it into the matching unit entry.",
+  "units": [
+    {
+      "unit_id": "EZQ-CTLR-B-0006",
+      "serial_number": "0006",
+      "factory_mac": "8C:FD:49:2B:BE:C4",
+      "status": "active_test_unit"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0007",
+      "serial_number": "0007",
+      "factory_mac": "",
+      "status": "unassigned"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0008",
+      "serial_number": "0008",
+      "factory_mac": "",
+      "status": "unassigned"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0009",
+      "serial_number": "0009",
+      "factory_mac": "",
+      "status": "unassigned"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0010",
+      "serial_number": "0010",
+      "factory_mac": "",
+      "status": "unassigned"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0011",
+      "serial_number": "0011",
+      "factory_mac": "",
+      "status": "unassigned"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0012",
+      "serial_number": "0012",
+      "factory_mac": "",
+      "status": "unassigned"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0013",
+      "serial_number": "0013",
+      "factory_mac": "",
+      "status": "unassigned"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0014",
+      "serial_number": "0014",
+      "factory_mac": "",
+      "status": "unassigned"
+    },
+    {
+      "unit_id": "EZQ-CTLR-B-0015",
+      "serial_number": "0015",
+      "factory_mac": "",
+      "status": "unassigned"
+    }
+  ]
+}

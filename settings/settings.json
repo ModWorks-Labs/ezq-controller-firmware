@@ -1,0 +1,16 @@
+{
+  "state_handling": {
+    "idle_sleep_timeout_ms": 240000
+  },
+  "safety": {
+    "temp_fault_high_c": 90.0,
+    "temp_fault_low_c": 85.0,
+    "battery_warning_v": 10.5,
+    "battery_fault_v": 9.6,
+    "abort_blower_duration_ms": 15000
+  },
+  "ui": {
+    "sound_volume": 2,
+    "button_press_beep_enabled": true
+  }
+}

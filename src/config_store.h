@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 namespace config_store {
 
@@ -25,13 +26,20 @@ struct IgnitionProfile {
 
 struct Settings {
   uint32_t idle_sleep_timeout_ms;
-  uint32_t abort_cooldown_ms;
+  uint32_t abort_blower_duration_ms;
   float temp_fault_high_c;
+  float temp_fault_low_c;
+  float battery_warning_v;
   float battery_fault_low_v;
+  uint8_t sound_volume;
+  bool button_press_beep_enabled;
   std::array<char, 16> active_profile_name;
 };
 
 bool init();
+bool prepare_settings_partition_update();
+bool finalize_settings_partition_update();
+bool update_setting(const std::string &key, const std::string &value, std::string &message);
 const Settings &settings();
 const IgnitionProfile &active_profile();
 

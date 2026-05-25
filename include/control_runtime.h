@@ -4,6 +4,7 @@
 
 enum class ControlStateId {
   BOOT,
+  UPDATE_FW,
   READY_IDLE,
   BLOWER_MODE,
   IGNITION_CYCLE,
@@ -43,9 +44,18 @@ struct ControlRuntimeStatus {
 
 namespace control_app {
 
+enum class RemoteActionResult {
+  ACCEPTED,
+  INVALID_STATE,
+  NOT_INITIALIZED,
+};
+
 void init();
 void tick();
 bool initialized();
 ControlRuntimeStatus get_status();
+RemoteActionResult request_start_cycle();
+RemoteActionResult request_toggle_blower();
+RemoteActionResult request_abort();
 
 }  // namespace control_app

@@ -7,6 +7,7 @@
 namespace debug_console {
 
 void init();
+bool client_connected();
 void log_message(esp_log_level_t level, const char *tag, const char *format, ...);
 void log_message_v(esp_log_level_t level, const char *tag, const char *format, va_list args);
 

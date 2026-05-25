@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EZQ Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ezq-yellow: #E8D44D;
+      --ezq-blue: #5BC4E8;
+      --ezq-blue-bg: #1a3a45;
+      --ezq-blue-border: rgba(91,196,232,0.25);
+      --ezq-bg: #161618;
+      --ezq-surface: #1f1f22;
+      --ezq-card: #252528;
+      --ezq-inner: #2c2c30;
+      --ezq-border: rgba(255,255,255,0.07);
+      --ezq-text: #f0f0f0;
+      --ezq-muted: #888890;
+      --ezq-dim: #4a4a52;
+      --ezq-danger: #c26767;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--ezq-bg);
+      color: var(--ezq-text);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      font-family: system-ui, sans-serif;
+    }
+
+    .shell {
+      background: var(--ezq-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      width: 360px;
+      margin: 0 auto;
+      border: 0.5px solid rgba(255,255,255,0.08);
+      color: var(--ezq-text);
+    }
+
+    .topbar {
+      background: var(--ezq-surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 48px;
+      border-bottom: 0.5px solid var(--ezq-border);
+    }
+    .logo { font-size: 20px; font-weight: 700; color: var(--ezq-yellow); letter-spacing: 1px; }
+    .ap-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255,255,255,0.04);
+      border: 0.5px solid var(--ezq-border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 10px;
+      color: var(--ezq-muted);
+      letter-spacing: 0.5px;
+    }
+    .ap-dot { width: 6px; height: 6px; border-radius: 50%; background: #4caf7d; flex-shrink: 0; }
+
+    .nav { background: var(--ezq-surface); display: flex; border-bottom: 0.5px solid var(--ezq-border); }
+    .nav-tab {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+      padding: 9px 4px;
+      color: var(--ezq-muted);
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      border-radius: 0;
+      font-weight: 500;
+    }
+    .nav-tab.active { color: var(--ezq-yellow); border-bottom-color: var(--ezq-yellow); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .stack { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+
+    .card {
+      background: var(--ezq-card);
+      border: 0.5px solid var(--ezq-border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .card-label {
+      font-size: 9px;
+      letter-spacing: 1.2px;
+      color: var(--ezq-muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .ctrl-btn {
+      border-radius: 8px;
+      padding: 12px 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      border: 0.5px solid rgba(255,255,255,0.07);
+      background: var(--ezq-inner);
+      transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+    }
+    .ctrl-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+    .ctrl-btn-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid var(--ezq-muted);
+      color: var(--ezq-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    .ctrl-btn-label { font-size: 12px; font-weight: 500; color: var(--ezq-text); line-height: 1.2; transition: color 0.2s; }
+    .ctrl-btn-sub { font-size: 10px; color: var(--ezq-muted); transition: color 0.2s; }
+
+    .ctrl-btn.ignition {
+      background: var(--ezq-yellow);
+      border-color: transparent;
+    }
+    .ctrl-btn.ignition .ctrl-btn-icon { color: #111; border-color: rgba(0,0,0,0.3); }
+    .ctrl-btn.ignition .ctrl-btn-label { color: #111; }
+    .ctrl-btn.ignition .ctrl-btn-sub { color: rgba(0,0,0,0.55); }
+
+    .ctrl-btn.blower.on {
+      background: var(--ezq-blue-bg);
+      border-color: var(--ezq-blue-border);
+    }
+    .ctrl-btn.blower.on .ctrl-btn-icon { color: var(--ezq-blue); border-color: rgba(91,196,232,0.35); }
+    .ctrl-btn.blower.on .ctrl-btn-label { color: var(--ezq-blue); }
+    .ctrl-btn.blower.on .ctrl-btn-sub { color: rgba(91,196,232,0.6); }
+
+    .ctrl-btn.abort {
+      margin-top: 8px;
+      width: 100%;
+      align-items: center;
+      text-align: center;
+      background: rgba(194,103,103,0.14);
+      border-color: rgba(194,103,103,0.22);
+    }
+    .ctrl-btn.abort .ctrl-btn-label,
+    .ctrl-btn.abort .ctrl-btn-sub,
+    .ctrl-btn.abort .ctrl-btn-icon {
+      color: var(--ezq-danger);
+      border-color: rgba(194,103,103,0.35);
+    }
+
+    .telem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .telem-cell {
+      background: var(--ezq-inner);
+      border: 0.5px solid rgba(255,255,255,0.05);
+      border-radius: 7px;
+      padding: 10px 12px;
+    }
+    .telem-cell.full { grid-column: 1 / -1; }
+    .telem-lbl { font-size: 9px; letter-spacing: 0.8px; color: var(--ezq-muted); text-transform: uppercase; margin-bottom: 3px; }
+    .telem-val { font-size: 24px; font-weight: 500; color: var(--ezq-text); line-height: 1.1; }
+    .telem-val span { font-size: 12px; color: var(--ezq-muted); font-weight: 400; margin-left: 1px; }
+    .telem-val.state-val { font-family: monospace; letter-spacing: 0.5px; font-size: 18px; }
+
+    .device-row, .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 0.5px solid var(--ezq-border);
+    }
+    .device-row:last-child, .settings-row:last-child { border-bottom: none; }
+    .device-key, .settings-key { font-size: 10px; color: var(--ezq-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+    .device-val, .settings-val { font-size: 15px; color: var(--ezq-text); font-family: monospace; text-align: right; }
+
+    .placeholder {
+      min-height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--ezq-muted);
+      font-size: 12px;
+      letter-spacing: 0.3px;
+      line-height: 1.5;
+    }
+
+    .status {
+      min-height: 44px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--ezq-inner);
+      border: 0.5px solid rgba(255,255,255,0.05);
+      color: var(--ezq-muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .status.good { color: var(--ezq-yellow); }
+    .status.bad { color: var(--ezq-danger); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="logo">EZQ</div>
+      <div class="ap-badge"><div class="ap-dot"></div><span id="badgeText">LAN ACTIVE</span></div>
+    </div>
+
+    <div class="nav">
+      <button class="nav-tab active" data-tab="dashboard" type="button">Dashboard</button>
+      <button class="nav-tab" data-tab="settings" type="button">Settings</button>
+      <button class="nav-tab" data-tab="cycles" type="button">Cycles</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-dashboard">
+      <div class="stack">
+        <div class="card">
+          <div class="card-label">Control Panel</div>
+          <div class="control-grid">
+            <button class="ctrl-btn ignition" id="ignitionBtn" type="button">
+              <span class="ctrl-btn-icon">F</span>
+              <div class="ctrl-btn-label">Ignition Cycle</div>
+              <div class="ctrl-btn-sub" id="ignitionSub">Start</div>
+            </button>
+            <button class="ctrl-btn blower" id="blowerBtn" type="button">
+              <span class="ctrl-btn-icon">B</span>
+              <div class="ctrl-btn-label">Blower Mode</div>
+              <div class="ctrl-btn-sub" id="blowerSub">Off</div>
+            </button>
+          </div>
+          <button class="ctrl-btn abort hidden" id="abortBtn" type="button">
+            <span class="ctrl-btn-icon">!</span>
+            <div class="ctrl-btn-label">Abort Cycle</div>
+            <div class="ctrl-btn-sub">Equivalent to button abort</div>
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Live Telemetry</div>
+          <div class="telem-grid">
+            <div class="telem-cell">
+              <div class="telem-lbl">Temperature</div>
+              <div class="telem-val" id="tempValue">--<span>°C</span></div>
+            </div>
+            <div class="telem-cell">
+              <div class="telem-lbl">Battery</div>
+              <div class="telem-val" id="batteryValue">--<span>V</span></div>
+            </div>
+            <div class="telem-cell full">
+              <div class="telem-lbl">State</div>
+              <div class="telem-val state-val" id="stateValue">LOADING</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Device</div>
+          <div class="device-row">
+            <span class="device-key">Board ID</span>
+            <span class="device-val" id="boardValue">--</span>
+          </div>
+          <div class="device-row">
+            <span class="device-key">Serial</span>
+            <span class="device-val" id="serialValue">--</span>
+          </div>
+          <div class="device-row">
+            <span class="device-key">Firmware</span>
+            <span class="device-val" id="firmwareValue">--</span>
+          </div>
+        </div>
+
+        <div class="status" id="statusBox">Loading dashboard status...</div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-settings">
+      <div class="stack">
+        <div class="card">
+          <div class="card-label">Current Settings</div>
+          <div class="settings-row"><span class="settings-key">Idle Sleep</span><span class="settings-val" id="settingIdle">--</span></div>
+          <div class="settings-row"><span class="settings-key">Abort Blower</span><span class="settings-val" id="settingAbort">--</span></div>
+          <div class="settings-row"><span class="settings-key">Temp High</span><span class="settings-val" id="settingTempHigh">--</span></div>
+          <div class="settings-row"><span class="settings-key">Temp Low</span><span class="settings-val" id="settingTempLow">--</span></div>
+          <div class="settings-row"><span class="settings-key">Battery Warn</span><span class="settings-val" id="settingBattWarn">--</span></div>
+          <div class="settings-row"><span class="settings-key">Battery Fault</span><span class="settings-val" id="settingBattFault">--</span></div>
+          <div class="settings-row"><span class="settings-key">Sound Volume</span><span class="settings-val" id="settingVolume">--</span></div>
+          <div class="settings-row"><span class="settings-key">Button Beep</span><span class="settings-val" id="settingBeep">--</span></div>
+          <div class="settings-row"><span class="settings-key">Active Profile</span><span class="settings-val" id="settingProfile">--</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-cycles">
+      <div class="stack">
+        <div class="card">
+          <div class="card-label">Cycles</div>
+          <div class="placeholder">
+            Cycle/profile UI is not wired yet.
+            <br>
+            Backend control endpoints are live on the Dashboard tab.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusBox = document.getElementById('statusBox');
+    const ignitionBtn = document.getElementById('ignitionBtn');
+    const ignitionSub = document.getElementById('ignitionSub');
+    const blowerBtn = document.getElementById('blowerBtn');
+    const blowerSub = document.getElementById('blowerSub');
+    const abortBtn = document.getElementById('abortBtn');
+    const tempValue = document.getElementById('tempValue');
+    const batteryValue = document.getElementById('batteryValue');
+    const stateValue = document.getElementById('stateValue');
+    const boardValue = document.getElementById('boardValue');
+    const serialValue = document.getElementById('serialValue');
+    const firmwareValue = document.getElementById('firmwareValue');
+    const badgeText = document.getElementById('badgeText');
+
+    let lastStatus = null;
+
+    function setStatus(message, tone = '') {
+      statusBox.textContent = message;
+      statusBox.className = 'status' + (tone ? ' ' + tone : '');
+    }
+
+    function serialFromUnitId(unitId) {
+      if (!unitId || unitId === 'unprovisioned') {
+        return '--';
+      }
+      const parts = unitId.split('-');
+      return parts[parts.length - 1] || '--';
+    }
+
+    function updateControls(body) {
+      const inReady = body.state === 'READY_IDLE';
+      const inBlower = body.state === 'BLOWER_MODE';
+      const inIgnition = body.state === 'IGNITION_CYCLE';
+
+      ignitionBtn.disabled = !inReady;
+      ignitionSub.textContent = inReady ? 'Start' : (inIgnition ? 'Active' : 'Unavailable');
+
+      blowerBtn.disabled = !(inReady || inBlower);
+      blowerBtn.classList.toggle('on', inBlower);
+      blowerSub.textContent = inBlower ? 'On' : 'Off';
+
+      abortBtn.classList.toggle('hidden', !inIgnition);
+      abortBtn.disabled = !inIgnition;
+    }
+
+    function updateDashboard(body) {
+      lastStatus = body;
+      tempValue.innerHTML = body.temp_valid ? `${body.temp_c.toFixed(2)}<span>°C</span>` : `n/a<span>°C</span>`;
+      batteryValue.innerHTML = body.battery_valid ? `${body.battery_v.toFixed(2)}<span>V</span>` : `n/a<span>V</span>`;
+      stateValue.textContent = body.detail && body.detail !== '-' ? `${body.state} / ${body.detail}` : body.state;
+      boardValue.textContent = body.board_id || '--';
+      serialValue.textContent = serialFromUnitId(body.unit_id);
+      firmwareValue.textContent = body.firmware_version || '--';
+      badgeText.textContent = body.ip && body.ip !== 'n/a' ? 'LAN ACTIVE' : 'LAN DOWN';
+      updateControls(body);
+      setStatus(`Connected to ${body.hostname} at ${body.ip}:${body.http_port}`, 'good');
+    }
+
+    async function loadStatus() {
+      try {
+        const response = await fetch('/api/dashboard/status');
+        const body = await response.json();
+        updateDashboard(body);
+      } catch (error) {
+        setStatus('Failed to load dashboard status from the board.', 'bad');
+      }
+    }
+
+    async function loadSettings() {
+      try {
+        const response = await fetch('/api/dev/settings');
+        const body = await response.json();
+        document.getElementById('settingIdle').textContent = `${body.idle_sleep_timeout_ms} ms`;
+        document.getElementById('settingAbort').textContent = `${body.abort_blower_duration_ms} ms`;
+        document.getElementById('settingTempHigh').textContent = `${body.temp_fault_high_c.toFixed(1)} C`;
+        document.getElementById('settingTempLow').textContent = `${body.temp_fault_low_c.toFixed(1)} C`;
+        document.getElementById('settingBattWarn').textContent = `${body.battery_warning_v.toFixed(2)} V`;
+        document.getElementById('settingBattFault').textContent = `${body.battery_fault_v.toFixed(2)} V`;
+        document.getElementById('settingVolume').textContent = String(body.sound_volume);
+        document.getElementById('settingBeep').textContent = body.button_press_beep_enabled ? 'true' : 'false';
+        document.getElementById('settingProfile').textContent = body.active_profile || '--';
+      } catch (error) {
+        setStatus('Failed to load device settings.', 'bad');
+      }
+    }
+
+    async function postAction(url, pendingMessage) {
+      setStatus(pendingMessage);
+      try {
+        const response = await fetch(url, { method: 'POST' });
+        const body = await response.json();
+        setStatus(body.message || 'Action sent.', body.ok ? 'good' : 'bad');
+      } catch (error) {
+        setStatus('Action request failed.', 'bad');
+      } finally {
+        window.setTimeout(loadStatus, 150);
+      }
+    }
+
+    function activateTab(tabName) {
+      document.querySelectorAll('.nav-tab').forEach((button) => {
+        button.classList.toggle('active', button.dataset.tab === tabName);
+      });
+      document.querySelectorAll('.tab-panel').forEach((panel) => {
+        panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+      });
+      if (tabName === 'settings') {
+        loadSettings();
+      }
+    }
+
+    document.querySelectorAll('.nav-tab').forEach((button) => {
+      button.addEventListener('click', () => activateTab(button.dataset.tab));
+    });
+
+    ignitionBtn.addEventListener('click', () => postAction('/api/dashboard/start-cycle', 'Requesting ignition cycle countdown...'));
+    blowerBtn.addEventListener('click', () => postAction('/api/dashboard/toggle-blower', 'Sending blower toggle...'));
+    abortBtn.addEventListener('click', () => postAction('/api/dashboard/abort', 'Sending abort request...'));
+
+    loadStatus();
+    window.setInterval(loadStatus, 4000);
+  </script>
+</body>
+</html>

@@ -46,6 +46,7 @@ void update(StateContext &context) {
   DEV_LOGI(kTag, "Wake cause: %d", static_cast<int>(esp_sleep_get_wakeup_cause()));
   wifi_manager::resume_after_sleep();
   output_control::restore_after_light_sleep();
+  output_control::play_button_press();
   button_input::reset_after_wake(wake_now_ms);
   DEV_LOGI(kTag, "Wake detected. Returning to READY_IDLE.");
   context.machine.request_transition_at(StateId::READY_IDLE, wake_now_ms);

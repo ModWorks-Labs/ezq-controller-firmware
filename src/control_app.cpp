@@ -4,11 +4,14 @@
 #include "config_store.h"
 #include "debug_console.h"
 #include "output_control.h"
+#include "ota_service.h"
 #include "sensor_monitor.h"
 #include "state_machine/state_machine_types.h"
+#include "update_manager.h"
 
 #include "dev_config.h"
 #include "esp_timer.h"
+#include "freertos/portmacro.h"
 
 namespace control_app {
 namespace {
@@ -20,6 +23,47 @@ state_machine::Machine g_machine;
 bool g_initialized = false;
 bool g_fault_monitor_armed = false;
 uint64_t g_last_tick_us = 0;
+portMUX_TYPE g_command_lock = portMUX_INITIALIZER_UNLOCKED;
+
+enum class PendingCommand : uint32_t {
+  NONE = 0,
+  START_CYCLE = 1U << 0,
+  TOGGLE_BLOWER = 1U << 1,
+  ABORT = 1U << 2,
+};
+
+uint32_t g_pending_commands = 0;
+
+uint32_t take_pending_commands() {
+  portENTER_CRITICAL(&g_command_lock);
+  const uint32_t commands = g_pending_commands;
+  g_pending_commands = 0;
+  portEXIT_CRITICAL(&g_command_lock);
+  return commands;
+}
+
+void queue_pending_command(PendingCommand command) {
+  portENTER_CRITICAL(&g_command_lock);
+  g_pending_commands |= static_cast<uint32_t>(command);
+  portEXIT_CRITICAL(&g_command_lock);
+}
+
+void post_remote_commands() {
+  const uint32_t commands = take_pending_commands();
+  if (commands == 0) {
+    return;
+  }
+
+  if ((commands & static_cast<uint32_t>(PendingCommand::START_CYCLE)) != 0U) {
+    g_machine.post_event(state_machine::EventType::BUTTON_LONG_PRESS);
+  }
+  if ((commands & static_cast<uint32_t>(PendingCommand::TOGGLE_BLOWER)) != 0U) {
+    g_machine.post_event(state_machine::EventType::BUTTON_SHORT_PRESS);
+  }
+  if ((commands & static_cast<uint32_t>(PendingCommand::ABORT)) != 0U) {
+    g_machine.post_event(state_machine::EventType::BUTTON_PRESSED);
+  }
+}
 
 void post_button_events(uint32_t now_ms) {
   button_input::Event event = {};
@@ -69,6 +113,7 @@ void tick() {
   const uint32_t now_ms = static_cast<uint32_t>(now_us / 1000ULL);
   output_control::tick(now_ms);
   post_button_events(now_ms);
+  post_remote_commands();
 
   if (g_last_tick_us != 0 && (now_us - g_last_tick_us) < kTickPeriodUs) {
     return;
@@ -88,6 +133,13 @@ void tick() {
                  config_store::settings(),
                  config_store::active_profile(),
                  sensor_monitor::snapshot());
+
+  const auto runtime = g_machine.runtime_status();
+  update_manager::tick_post_boot(runtime.state, runtime.fault_kind, now_ms);
+
+  if (ota_service::maintenance_active()) {
+    return;
+  }
 
   if (!g_fault_monitor_armed &&
       g_machine.current_state == state_machine::StateId::READY_IDLE &&
@@ -155,6 +207,48 @@ ControlRuntimeStatus get_status() {
     status.detail_name = "";
   }
   return status;
+}
+
+RemoteActionResult request_start_cycle() {
+  if (!g_initialized) {
+    return RemoteActionResult::NOT_INITIALIZED;
+  }
+
+  const auto status = get_status();
+  if (status.state != ControlStateId::READY_IDLE || !status.can_start_cycle) {
+    return RemoteActionResult::INVALID_STATE;
+  }
+
+  queue_pending_command(PendingCommand::START_CYCLE);
+  return RemoteActionResult::ACCEPTED;
+}
+
+RemoteActionResult request_toggle_blower() {
+  if (!g_initialized) {
+    return RemoteActionResult::NOT_INITIALIZED;
+  }
+
+  const auto status = get_status();
+  if (status.state != ControlStateId::READY_IDLE && status.state != ControlStateId::BLOWER_MODE) {
+    return RemoteActionResult::INVALID_STATE;
+  }
+
+  queue_pending_command(PendingCommand::TOGGLE_BLOWER);
+  return RemoteActionResult::ACCEPTED;
+}
+
+RemoteActionResult request_abort() {
+  if (!g_initialized) {
+    return RemoteActionResult::NOT_INITIALIZED;
+  }
+
+  const auto status = get_status();
+  if (status.state != ControlStateId::IGNITION_CYCLE) {
+    return RemoteActionResult::INVALID_STATE;
+  }
+
+  queue_pending_command(PendingCommand::ABORT);
+  return RemoteActionResult::ACCEPTED;
 }
 
 }  // namespace control_app

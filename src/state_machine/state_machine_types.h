@@ -12,6 +12,7 @@ namespace state_machine {
 
 enum class StateId {
   BOOT,
+  UPDATE_FW,
   READY_IDLE,
   BLOWER_MODE,
   IGNITION_CYCLE,
@@ -77,8 +78,12 @@ class Machine {
   uint32_t phase_entry_ms = 0;
   uint8_t countdown_beeps_sent = 0;
   bool boot_attempted = false;
+  bool update_attempted = false;
+  bool boot_update_wait_started = false;
+  uint32_t boot_update_wait_start_ms = 0;
   bool ready_idle_arming = false;
   bool ready_idle_long_committed = false;
+  bool ready_idle_console_connected = false;
   std::array<Event, 16> events = {};
   std::size_t event_count = 0;
   ControlFaultKind pending_fault = ControlFaultKind::NONE;

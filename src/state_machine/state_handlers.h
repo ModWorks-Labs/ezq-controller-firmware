@@ -5,6 +5,7 @@
 namespace state_machine {
 
 extern const StateHandler kBootState;
+extern const StateHandler kUpdateFwState;
 extern const StateHandler kReadyIdleState;
 extern const StateHandler kBlowerModeState;
 extern const StateHandler kIgnitionCycleState;

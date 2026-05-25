@@ -1,3 +1,8 @@
 cmake_minimum_required(VERSION 3.16.0)
+file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/version.txt" EZQ_PROJECT_VERSION LIMIT_COUNT 1)
+if(NOT EZQ_PROJECT_VERSION)
+    set(EZQ_PROJECT_VERSION "0.0.0")
+endif()
+set(PROJECT_VER "${EZQ_PROJECT_VERSION}")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(ezq-controller-firmware)

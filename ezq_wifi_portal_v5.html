@@ -1,0 +1,405 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ezq-yellow: #E8D44D;
+    --ezq-bg: #161618;
+    --ezq-surface: #1f1f22;
+    --ezq-card: #252528;
+    --ezq-inner: #2c2c30;
+    --ezq-border: rgba(255,255,255,0.07);
+    --ezq-border-hover: rgba(255,255,255,0.14);
+    --ezq-text: #f0f0f0;
+    --ezq-muted: #888890;
+    --ezq-dim: #4a4a52;
+  }
+
+  .shell {
+    background: var(--ezq-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    width: 360px;
+    margin: 0 auto;
+    border: 0.5px solid rgba(255,255,255,0.08);
+    font-family: var(--font-sans, system-ui, sans-serif);
+    color: var(--ezq-text);
+    position: relative;
+    min-height: 520px;
+  }
+
+  .topbar {
+    background: var(--ezq-surface);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; height: 48px;
+    border-bottom: 0.5px solid var(--ezq-border);
+  }
+  .logo { font-size: 20px; font-weight: 700; color: var(--ezq-yellow); letter-spacing: 1px; }
+
+  .content { padding: 14px; }
+
+  .card {
+    background: var(--ezq-card);
+    border: 0.5px solid var(--ezq-border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .card-header-left { display: flex; align-items: center; gap: 7px; }
+  .card-header-left i { font-size: 14px; color: var(--ezq-muted); }
+  .card-label {
+    font-size: 9px; letter-spacing: 1.2px;
+    color: var(--ezq-muted); text-transform: uppercase;
+  }
+
+  .scan-btn {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--ezq-inner);
+    border: 0.5px solid var(--ezq-border);
+    border-radius: 20px; padding: 4px 10px;
+    font-size: 10px; color: var(--ezq-muted);
+    cursor: pointer; letter-spacing: 0.3px;
+  }
+  .scan-btn i { font-size: 11px; }
+
+  .network-scroll {
+    max-height: 380px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ezq-dim) transparent;
+  }
+  .network-scroll::-webkit-scrollbar { width: 3px; }
+  .network-scroll::-webkit-scrollbar-thumb { background: var(--ezq-dim); border-radius: 2px; }
+
+  .network-row {
+    background: var(--ezq-inner);
+    border: 0.5px solid var(--ezq-border);
+    border-radius: 8px;
+    padding: 11px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .network-row:hover { border-color: var(--ezq-border-hover); background: #313136; }
+
+  .network-left { display: flex; align-items: center; gap: 10px; }
+  .network-name { font-size: 13px; font-weight: 500; color: var(--ezq-text); }
+  .network-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+  .network-security { font-size: 9px; color: var(--ezq-dim); letter-spacing: 0.4px; }
+  .network-signal { font-size: 9px; color: var(--ezq-dim); }
+
+  .signal-bars { display: flex; align-items: flex-end; gap: 2px; height: 13px; }
+  .bar { width: 3px; border-radius: 1px; background: var(--ezq-dim); }
+  .bar.lit { background: var(--ezq-muted); }
+  .bar:nth-child(1) { height: 4px; }
+  .bar:nth-child(2) { height: 7px; }
+  .bar:nth-child(3) { height: 10px; }
+  .bar:nth-child(4) { height: 13px; }
+
+  .modal-overlay {
+    display: none;
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.55);
+    border-radius: 12px;
+    align-items: center; justify-content: center;
+    z-index: 10; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--ezq-surface);
+    border: 0.5px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 20px; width: 100%;
+  }
+
+  .modal-header { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .modal-header i { font-size: 17px; color: var(--ezq-muted); }
+  .modal-network-name { font-size: 15px; font-weight: 500; color: var(--ezq-text); }
+
+  .field-label {
+    font-size: 9px; letter-spacing: 1px; color: var(--ezq-muted);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+
+  .pw-wrap { margin-bottom: 18px; }
+  .pw-field {
+    position: relative;
+  }
+  .pw-input {
+    width: 100%;
+    background: var(--ezq-inner);
+    border: 0.5px solid var(--ezq-border);
+    border-radius: 7px;
+    padding: 10px 42px 10px 12px;
+    font-size: 14px; color: var(--ezq-text); outline: none;
+    -webkit-appearance: none;
+  }
+  .pw-input::placeholder { color: var(--ezq-dim); }
+  .pw-input:focus { border-color: rgba(255,255,255,0.18); }
+  .pw-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--ezq-muted);
+    cursor: pointer;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-actions { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+  .cancel-btn {
+    flex: 1;
+    padding: 10px; font-size: 13px;
+    background: transparent; color: var(--ezq-muted);
+    border: 0.5px solid var(--ezq-dim); border-radius: 7px; cursor: pointer;
+  }
+  .connect-btn {
+    flex: 1;
+    padding: 10px; font-size: 13px; font-weight: 600;
+    background: var(--ezq-yellow); color: #111;
+    border: none; border-radius: 7px; cursor: pointer;
+  }
+</style>
+
+<div class="shell">
+
+  <div class="topbar">
+    <div class="logo">EZQ</div>
+  </div>
+
+  <div class="content">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <i class="ti ti-wifi" aria-hidden="true"></i>
+          <div class="card-label">Available Networks</div>
+        </div>
+        <button class="scan-btn" onclick="refreshScan()">
+          <i class="ti ti-refresh" id="scanIcon" aria-hidden="true"></i>
+          Scan
+        </button>
+      </div>
+
+      <div class="network-scroll">
+
+        <div class="network-row" onclick="openModal('ModNet', 'WPA2')">
+          <div class="network-left">
+            <div class="signal-bars"><div class="bar lit"></div><div class="bar lit"></div><div class="bar lit"></div><div class="bar lit"></div></div>
+            <div class="network-name">ModNet</div>
+          </div>
+          <div class="network-right">
+            <div class="network-security">WPA2</div>
+            <div class="network-signal">-43 dBm</div>
+          </div>
+        </div>
+
+        <div class="network-row" onclick="openModal('setupC9F60', 'WPA2')">
+          <div class="network-left">
+            <div class="signal-bars"><div class="bar lit"></div><div class="bar lit"></div><div class="bar lit"></div><div class="bar"></div></div>
+            <div class="network-name">setupC9F60</div>
+          </div>
+          <div class="network-right">
+            <div class="network-security">WPA2</div>
+            <div class="network-signal">-50 dBm</div>
+          </div>
+        </div>
+
+        <div class="network-row" onclick="openModal('ICS Registration', 'Open')">
+          <div class="network-left">
+            <div class="signal-bars"><div class="bar lit"></div><div class="bar lit"></div><div class="bar"></div><div class="bar"></div></div>
+            <div class="network-name">ICS Registration</div>
+          </div>
+          <div class="network-right">
+            <div class="network-security">Open</div>
+            <div class="network-signal">-58 dBm</div>
+          </div>
+        </div>
+
+        <div class="network-row" onclick="openModal('ICS ACC 216 Stanton Ave', 'WPA2')">
+          <div class="network-left">
+            <div class="signal-bars"><div class="bar lit"></div><div class="bar lit"></div><div class="bar"></div><div class="bar"></div></div>
+            <div class="network-name">ICS ACC 216 Stanton Ave</div>
+          </div>
+          <div class="network-right">
+            <div class="network-security">WPA2</div>
+            <div class="network-signal">-58 dBm</div>
+          </div>
+        </div>
+
+        <div class="network-row" onclick="openModal('Neighbors_5G', 'WPA2')">
+          <div class="network-left">
+            <div class="signal-bars"><div class="bar lit"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+            <div class="network-name">Neighbors_5G</div>
+          </div>
+          <div class="network-right">
+            <div class="network-security">WPA2</div>
+            <div class="network-signal">-72 dBm</div>
+          </div>
+        </div>
+
+        <div class="network-row" onclick="openModal('ATT_Guest', 'WPA2')">
+          <div class="network-left">
+            <div class="signal-bars"><div class="bar lit"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+            <div class="network-name">ATT_Guest</div>
+          </div>
+          <div class="network-right">
+            <div class="network-security">WPA2</div>
+            <div class="network-signal">-79 dBm</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <i class="ti ti-wifi" aria-hidden="true"></i>
+        <div class="modal-network-name" id="modalNetworkName"></div>
+      </div>
+      <div id="pwSection">
+        <div class="field-label">Password</div>
+        <div class="pw-wrap">
+          <div class="pw-field">
+            <input class="pw-input" id="pwInput" type="text" placeholder="Enter password" autocomplete="off" spellcheck="false" />
+            <button class="pw-toggle" id="pwToggle" type="button" aria-label="Toggle password visibility"></button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+        <button class="connect-btn">Connect</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const pwState = {
+    value: '',
+    visible: false,
+    timer: null,
+  };
+
+  const eyeIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12s3.75-6 10.5-6 10.5 6 10.5 6-3.75 6-10.5 6S1.5 12 1.5 12Z"></path><circle cx="12" cy="12" r="3.5"></circle></svg>';
+  const eyeOffIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"></path><path d="M10.6 5.2A11.2 11.2 0 0 1 12 5.1c6.75 0 10.5 6 10.5 6a18.9 18.9 0 0 1-4 4.6"></path><path d="M6.2 6.2C3.6 8.1 1.5 11.1 1.5 11.1s3.75 6 10.5 6c1.7 0 3.2-.4 4.5-1"></path><path d="M9.9 9.9a3.5 3.5 0 0 0 4.2 4.2"></path></svg>';
+
+  function clearPasswordRevealTimer() {
+    if (pwState.timer !== null) {
+      clearTimeout(pwState.timer);
+      pwState.timer = null;
+    }
+  }
+
+  function maskedPassword(showLastChar) {
+    if (!pwState.value) return '';
+    if (pwState.visible) return pwState.value;
+    if (showLastChar) return '•'.repeat(Math.max(0, pwState.value.length - 1)) + pwState.value.slice(-1);
+    return '•'.repeat(pwState.value.length);
+  }
+
+  function updatePasswordToggle() {
+    document.getElementById('pwToggle').innerHTML = pwState.visible ? eyeOffIcon : eyeIcon;
+  }
+
+  function updatePasswordDisplay(showLastChar = false) {
+    const input = document.getElementById('pwInput');
+    input.value = maskedPassword(showLastChar);
+    updatePasswordToggle();
+    setTimeout(() => {
+      const pos = input.value.length;
+      input.setSelectionRange(pos, pos);
+    }, 0);
+  }
+
+  function brieflyRevealLastChar() {
+    clearPasswordRevealTimer();
+    updatePasswordDisplay(true);
+    if (!pwState.visible) {
+      pwState.timer = setTimeout(() => {
+        pwState.timer = null;
+        updatePasswordDisplay(false);
+      }, 700);
+    }
+  }
+
+  function handlePasswordKeydown(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      return;
+    }
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      pwState.value = pwState.value.slice(0, -1);
+      clearPasswordRevealTimer();
+      updatePasswordDisplay(false);
+      return;
+    }
+    if (event.key === 'Delete') {
+      event.preventDefault();
+      pwState.value = '';
+      clearPasswordRevealTimer();
+      updatePasswordDisplay(false);
+      return;
+    }
+    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      pwState.value += event.key;
+      brieflyRevealLastChar();
+    }
+  }
+
+  function handlePasswordPaste(event) {
+    event.preventDefault();
+    const pasted = (event.clipboardData || window.clipboardData).getData('text');
+    if (!pasted) return;
+    pwState.value += pasted;
+    brieflyRevealLastChar();
+  }
+
+  function togglePasswordVisibility() {
+    pwState.visible = !pwState.visible;
+    clearPasswordRevealTimer();
+    updatePasswordDisplay(false);
+    document.getElementById('pwInput').focus();
+  }
+
+  function openModal(name, security) {
+    document.getElementById('modalNetworkName').textContent = name;
+    pwState.value = '';
+    pwState.visible = false;
+    clearPasswordRevealTimer();
+    document.getElementById('pwSection').style.display = security === 'Open' ? 'none' : 'block';
+    updatePasswordDisplay();
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+  function refreshScan() {
+    const icon = document.getElementById('scanIcon');
+    icon.style.transition = 'transform 0.6s';
+    icon.style.transform = 'rotate(360deg)';
+    setTimeout(() => { icon.style.transition = ''; icon.style.transform = ''; }, 650);
+  }
+
+  document.getElementById('pwInput').addEventListener('keydown', handlePasswordKeydown);
+  document.getElementById('pwInput').addEventListener('paste', handlePasswordPaste);
+  document.getElementById('pwToggle').addEventListener('click', togglePasswordVisibility);
+</script>

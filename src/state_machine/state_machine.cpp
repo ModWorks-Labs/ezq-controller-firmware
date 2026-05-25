@@ -1,5 +1,7 @@
 #include "state_machine/state_machine_types.h"
 
+#include "debug_console.h"
+#include "ota_service.h"
 #include "output_control.h"
 #include "state_machine/state_handlers.h"
 
@@ -12,6 +14,7 @@ Event make_event(EventType type) {
 
 const StateHandler *kHandlers[] = {
     &kBootState,
+    &kUpdateFwState,
     &kReadyIdleState,
     &kBlowerModeState,
     &kIgnitionCycleState,
@@ -22,6 +25,7 @@ const StateHandler *kHandlers[] = {
 
 const char *kStateNames[] = {
     "BOOT",
+    "UPDATE_FW",
     "READY_IDLE",
     "BLOWER_MODE",
     "IGNITION_CYCLE",
@@ -45,8 +49,12 @@ void Machine::init() {
   phase_entry_ms = 0;
   countdown_beeps_sent = 0;
   boot_attempted = false;
+  update_attempted = false;
+  boot_update_wait_started = false;
+  boot_update_wait_start_ms = 0;
   ready_idle_arming = false;
   ready_idle_long_committed = false;
+  ready_idle_console_connected = false;
   event_count = 0;
   pending_fault = ControlFaultKind::NONE;
   transition_time_override_valid = false;
@@ -157,7 +165,9 @@ ControlRuntimeStatus Machine::runtime_status() const {
   status.can_start_cycle = current_state == StateId::READY_IDLE && !ready_idle_arming;
   status.can_start_blower = current_state == StateId::READY_IDLE && !ready_idle_arming;
   status.can_abort_cycle = current_state == StateId::IGNITION_CYCLE;
-  status.can_sleep = current_state == StateId::READY_IDLE;
+  status.can_sleep = current_state == StateId::READY_IDLE &&
+                     !debug_console::client_connected() &&
+                     !ota_service::maintenance_active();
   status.glow_plug_active = output_control::glow_active();
   status.fan_active = output_control::fan_active();
   status.fault_latched = current_state == StateId::FAULT;

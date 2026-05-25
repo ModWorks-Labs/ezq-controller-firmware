@@ -2,7 +2,9 @@
 #include "control_runtime.h"
 #include "dev_config.h"
 #include "ota_service.h"
+#include "update_manager.h"
 #include "wifi_manager.h"
+#include "unit_identity.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -16,8 +18,17 @@ namespace {
 constexpr char kTag[] = "app_main";
 constexpr TickType_t kLoopDelay = pdMS_TO_TICKS(10);
 
-const char *wifi_label(bool connected) {
-  return connected ? "Connected" : "Disconnected";
+const char *wifi_mode_label(wifi_manager::WifiMode mode) {
+  switch (mode) {
+    case wifi_manager::WifiMode::STA:
+      return "STA";
+    case wifi_manager::WifiMode::PROVISION_AP:
+      return "PROVISION_AP";
+    case wifi_manager::WifiMode::APSTA_TEST:
+      return "APSTA_TEST";
+    default:
+      return "UNKNOWN";
+  }
 }
 
 void log_runtime_status();
@@ -108,15 +119,19 @@ void log_runtime_status() {
 
   DEV_LOGI(kTag,
            "\n--- %s ---\n"
+           "WiFi Mode: %s\n"
            "WiFi: %s\n"
            "IP: %s:%d\n"
+           "Setup AP: %s\n"
            "%s"
            "%s\n"
            "%s\n",
            control.state_name,
-           wifi_label(wifi.connected),
+           wifi_mode_label(wifi.mode),
+           wifi.connected ? "Connected" : "Disconnected",
            wifi.ip_address.empty() ? "n/a" : wifi.ip_address.c_str(),
            dev_config::kOtaHttpPort,
+           wifi.ap_active ? wifi.ap_ssid.c_str() : "n/a",
            detail_line,
            temp_line,
            battery_line);
@@ -127,19 +142,21 @@ void log_dev_hold_status(bool low, uint64_t stable_low_ms) {
 
   DEV_LOGI(kTag,
            "\n--- DEV HOLD ---\n"
+           "WiFi Mode: %s\n"
            "WiFi: %s\n"
-           "SSID: %s\n"
            "IP: %s:%d\n"
            "Debug: %s:%d\n"
+           "Setup AP: %s\n"
            "BOOT9: %s\n"
            "Stable Low: %llu / %d ms\n"
            "Waiting for full hold duration...\n",
-           wifi_label(wifi.connected),
-           dev_config::kWifiSsid,
+           wifi_mode_label(wifi.mode),
+           wifi.connected ? "Connected" : "Disconnected",
            wifi.ip_address.empty() ? "n/a" : wifi.ip_address.c_str(),
            dev_config::kOtaHttpPort,
            wifi.ip_address.empty() ? "n/a" : wifi.ip_address.c_str(),
            dev_config::kDebugTcpPort,
+           wifi.ap_active ? wifi.ap_ssid.c_str() : "n/a",
            low ? "Low" : "High",
            static_cast<unsigned long long>(stable_low_ms),
            dev_config::kDevHoldSettleMs);
@@ -154,6 +171,10 @@ extern "C" void app_main() {
 
   DEV_LOGI(kTag, "EZQ controller firmware bootstrap starting");
   init_boot_hold_pin();
+  DEV_LOGI(kTag, "Initializing unit identity...");
+  unit_identity::init();
+  DEV_LOGI(kTag, "Initializing update manager...");
+  update_manager::init();
 
   DEV_LOGI(kTag, "Initializing Wi-Fi manager...");
   wifi_manager::init();

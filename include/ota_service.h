@@ -15,5 +15,6 @@ struct OtaStatus {
 void init();
 void poll();
 OtaStatus get_status();
+bool maintenance_active();
 
 }  // namespace ota_service
