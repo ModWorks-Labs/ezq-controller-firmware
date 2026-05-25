@@ -14,7 +14,7 @@ constexpr char kTag[] = "state_update_fw";
 
 void enter(StateContext &context) {
   context.machine.update_attempted = false;
-  output_control::set_indicator(output_control::Indicator::BOOT);
+  output_control::set_indicator(output_control::Indicator::UPDATE_FW);
   update_manager::clear_async_state();
   DEV_LOGI(kTag, "\n--- UPDATE_FW ---");
 }

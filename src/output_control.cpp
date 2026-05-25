@@ -294,6 +294,10 @@ void render_indicator(uint32_t now_ms) {
       apply_led_color(0, 0, 0);
       break;
 
+    case Indicator::UPDATE_FW:
+      apply_led_color(kLedBrightness, 0, kLedBrightness);
+      break;
+
     case Indicator::READY_IDLE:
       apply_led_color(0, kLedBrightness, 0);
       break;

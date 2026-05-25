@@ -7,6 +7,7 @@ namespace output_control {
 enum class Indicator {
   OFF,
   BOOT,
+  UPDATE_FW,
   READY_IDLE,
   BLOWER_MODE,
   ARMING,
