@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "glow_plug_duration_sec": 150,
+  "fan_steps": [
+    {
+      "start_sec": 150,
+      "target_throttle_percent": 50,
+      "ramp_duration_sec": 5
+    }
+  ]
+}

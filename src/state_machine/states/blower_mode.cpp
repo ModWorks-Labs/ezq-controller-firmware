@@ -5,10 +5,10 @@
 namespace state_machine {
 namespace {
 
-void enter(StateContext &) {
+void enter(StateContext &context) {
   output_control::set_indicator(output_control::Indicator::BLOWER_MODE);
   output_control::play_mode_entry_beep();
-  output_control::set_fan_percent(100.0f);
+  output_control::set_fan_percent(context.settings.fan_max_throttle_percent);
   output_control::set_glow_off();
 }
 

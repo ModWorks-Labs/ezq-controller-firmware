@@ -15,7 +15,21 @@ void enter(StateContext &context) {
   output_control::play_fault_pattern();
 }
 
-void update(StateContext &) {}
+void update(StateContext &context) {
+  if (context.settings.fault_latch_enabled) {
+    return;
+  }
+
+  Event event = {};
+  while (context.machine.dequeue_event(event)) {
+    if (event.type == EventType::BUTTON_PRESSED || event.type == EventType::BUTTON_SHORT_PRESS ||
+        event.type == EventType::BUTTON_LONG_PRESS) {
+      context.machine.fault_kind = ControlFaultKind::NONE;
+      context.machine.request_transition(StateId::READY_IDLE);
+      return;
+    }
+  }
+}
 
 void exit(StateContext &) {}
 

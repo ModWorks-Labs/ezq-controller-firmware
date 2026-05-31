@@ -28,6 +28,8 @@ namespace {
 constexpr char kTag[] = "ota_service";
 constexpr char kStatusUri[] = "/api/dev/status";
 constexpr char kSettingsUri[] = "/api/dev/settings";
+constexpr char kSettingsSchemaUri[] = "/api/dev/settings-schema";
+constexpr char kCycleProfileUri[] = "/api/dev/cycle-profile";
 constexpr char kOtaUri[] = "/api/dev/ota";
 constexpr char kSettingsFsUri[] = "/api/dev/fs/settings";
 constexpr char kWebUiFsUri[] = "/api/dev/fs/web_ui";
@@ -38,6 +40,7 @@ constexpr char kDashboardAbortUri[] = "/api/dashboard/abort";
 constexpr char kDashboardToggleBlowerUri[] = "/api/dashboard/toggle-blower";
 
 constexpr char kProvisionRootUri[] = "/";
+constexpr char kLogoUri[] = "/ezq-logo.svg";
 constexpr char kProvisionStatusUri[] = "/api/provision/status";
 constexpr char kProvisionScanUri[] = "/api/provision/scan";
 constexpr char kProvisionConnectUri[] = "/api/provision/connect";
@@ -46,9 +49,11 @@ constexpr int kOtaServerPort = dev_config::kOtaHttpPort;
 constexpr int kProvisionServerPort = 80;
 constexpr int kProvisionCtrlPort = 32769;
 constexpr int64_t kDefaultRebootDelayUs = 500000;
+constexpr uint32_t kDashboardSessionHoldMs = 15000;
 constexpr char kWebUiPartitionLabel[] = "web_ui";
 constexpr char kWebUiBasePath[] = "/webui";
 constexpr char kWebUiIndexPath[] = "/webui/index.html";
+constexpr char kWebUiLogoPath[] = "/webui/ezq-logo.svg";
 
 constexpr char kProvisionPage[] = R"HTML(
 <!doctype html>
@@ -60,7 +65,7 @@ constexpr char kProvisionPage[] = R"HTML(
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --ezq-yellow: #E8D44D;
+      --ezq-yellow: #F5E000;
       --ezq-bg: #161618;
       --ezq-surface: #1f1f22;
       --ezq-card: #252528;
@@ -693,6 +698,7 @@ bool g_reboot_pending = false;
 int64_t g_reboot_at_us = 0;
 bool g_web_ui_mounted = false;
 bool g_maintenance_active = false;
+int64_t g_last_dashboard_activity_us = 0;
 
 const char *wifi_mode_name(wifi_manager::WifiMode mode) {
   switch (mode) {
@@ -757,6 +763,10 @@ void schedule_reboot(int64_t delay_us) {
   DEV_LOGI(kTag, "Reboot scheduled in %lld ms", static_cast<long long>(delay_us / 1000));
 }
 
+void note_dashboard_activity() {
+  g_last_dashboard_activity_us = esp_timer_get_time();
+}
+
 bool read_request_body(httpd_req_t *request, std::string &body) {
   if (request->content_len <= 0) {
     body.clear();
@@ -809,35 +819,98 @@ esp_err_t status_handler(httpd_req_t *request) {
 }
 
 esp_err_t settings_handler(httpd_req_t *request) {
+  note_dashboard_activity();
   const auto &settings = config_store::settings();
-  char body[512] = {};
+  char body[1024] = {};
   snprintf(body,
            sizeof(body),
-           "{\"ok\":true,"
-           "\"idle_sleep_timeout_ms\":%lu,"
-           "\"abort_blower_duration_ms\":%lu,"
-           "\"temp_fault_high_c\":%.1f,"
-           "\"temp_fault_low_c\":%.1f,"
-           "\"battery_warning_v\":%.2f,"
-           "\"battery_fault_v\":%.2f,"
-           "\"sound_volume\":%u,"
-           "\"button_press_beep_enabled\":%s,"
-           "\"active_profile\":\"%s\"}",
+           "{\"ok\":true,\"sound_volume\":%u,\"audio_enabled\":%s,"
+           "\"post_cycle_reminder_enabled\":%s,\"automatic_firmware_updates_enabled\":%s,"
+           "\"offline_dashboard_ap_enabled\":%s,\"dashboard_prevents_sleep_enabled\":%s,"
+           "\"idle_sleep_timeout_ms\":%lu,\"temp_fault_high_c\":%.1f,\"temp_fault_low_c\":%.1f,"
+           "\"battery_warning_v\":%.2f,\"battery_fault_v\":%.2f,\"abort_blower_duration_ms\":%lu}",
+           static_cast<unsigned>(settings.sound_volume),
+           settings.audio_enabled ? "true" : "false",
+           settings.post_cycle_reminder_enabled ? "true" : "false",
+           settings.automatic_firmware_updates_enabled ? "true" : "false",
+           settings.offline_dashboard_ap_enabled ? "true" : "false",
+           settings.dashboard_prevents_sleep_enabled ? "true" : "false",
            static_cast<unsigned long>(settings.idle_sleep_timeout_ms),
-           static_cast<unsigned long>(settings.abort_blower_duration_ms),
            static_cast<double>(settings.temp_fault_high_c),
            static_cast<double>(settings.temp_fault_low_c),
            static_cast<double>(settings.battery_warning_v),
            static_cast<double>(settings.battery_fault_low_v),
-           static_cast<unsigned>(settings.sound_volume),
-           settings.button_press_beep_enabled ? "true" : "false",
-           settings.active_profile_name.data());
+           static_cast<unsigned long>(settings.abort_blower_duration_ms));
 
   httpd_resp_set_type(request, "application/json");
   return httpd_resp_sendstr(request, body);
 }
 
+esp_err_t settings_schema_handler(httpd_req_t *request) {
+  note_dashboard_activity();
+  const std::string body = config_store::settings_schema_json();
+  if (body.empty()) {
+    return httpd_resp_send_err(
+        request, HTTPD_500_INTERNAL_SERVER_ERROR, "settings schema unavailable");
+  }
+
+  httpd_resp_set_type(request, "application/json");
+  return httpd_resp_sendstr(request, body.c_str());
+}
+
+esp_err_t settings_schema_post_handler(httpd_req_t *request) {
+  note_dashboard_activity();
+  std::string body;
+  if (!read_request_body(request, body)) {
+    return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, "Failed reading request body");
+  }
+
+  std::string message;
+  if (!config_store::update_settings_schema_json(body, message)) {
+    return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, message.c_str());
+  }
+
+  const std::string response = config_store::settings_schema_json();
+  if (response.empty()) {
+    return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, "settings schema unavailable");
+  }
+  httpd_resp_set_type(request, "application/json");
+  return httpd_resp_sendstr(request, response.c_str());
+}
+
+esp_err_t cycle_profile_handler(httpd_req_t *request) {
+  note_dashboard_activity();
+  const std::string body = config_store::cycle_profile_json();
+  if (body.empty()) {
+    return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, "cycle profile unavailable");
+  }
+
+  httpd_resp_set_type(request, "application/json");
+  return httpd_resp_sendstr(request, body.c_str());
+}
+
+esp_err_t cycle_profile_post_handler(httpd_req_t *request) {
+  note_dashboard_activity();
+  std::string body;
+  if (!read_request_body(request, body)) {
+    return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, "Failed reading request body");
+  }
+
+  std::string message;
+  if (!config_store::update_cycle_profile_json(body, message)) {
+    return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, message.c_str());
+  }
+
+  const std::string response = config_store::cycle_profile_json();
+  if (response.empty()) {
+    return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, "cycle profile unavailable");
+  }
+  httpd_resp_set_type(request, "application/json");
+  return httpd_resp_sendstr(request, response.c_str());
+}
+
 esp_err_t dashboard_page_handler(httpd_req_t *request) {
+  note_dashboard_activity();
   if (!mount_web_ui()) {
     return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, "web_ui unavailable");
   }
@@ -861,7 +934,33 @@ esp_err_t dashboard_page_handler(httpd_req_t *request) {
   return httpd_resp_sendstr_chunk(request, nullptr);
 }
 
+esp_err_t web_ui_logo_handler(httpd_req_t *request) {
+  note_dashboard_activity();
+  if (!mount_web_ui()) {
+    return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, "web_ui unavailable");
+  }
+
+  FILE *file = fopen(kWebUiLogoPath, "rb");
+  if (file == nullptr) {
+    return httpd_resp_send_err(request, HTTPD_404_NOT_FOUND, "logo not found");
+  }
+
+  httpd_resp_set_type(request, "image/svg+xml");
+  char buffer[1024] = {};
+  std::size_t read = 0;
+  while ((read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+    if (httpd_resp_send_chunk(request, buffer, static_cast<ssize_t>(read)) != ESP_OK) {
+      fclose(file);
+      httpd_resp_sendstr_chunk(request, nullptr);
+      return ESP_FAIL;
+    }
+  }
+  fclose(file);
+  return httpd_resp_sendstr_chunk(request, nullptr);
+}
+
 esp_err_t dashboard_status_handler(httpd_req_t *request) {
+  note_dashboard_activity();
   const auto control = control_app::get_status();
   const auto wifi = wifi_manager::get_status();
   const auto *app = esp_app_get_description();
@@ -897,6 +996,7 @@ esp_err_t dashboard_status_handler(httpd_req_t *request) {
 }
 
 esp_err_t dashboard_beep_handler(httpd_req_t *request) {
+  note_dashboard_activity();
   output_control::play_button_press();
   httpd_resp_set_type(request, "application/json");
   return httpd_resp_sendstr(
@@ -904,6 +1004,7 @@ esp_err_t dashboard_beep_handler(httpd_req_t *request) {
 }
 
 esp_err_t dashboard_start_cycle_handler(httpd_req_t *request) {
+  note_dashboard_activity();
   const auto result = control_app::request_start_cycle();
   const bool ok = result == control_app::RemoteActionResult::ACCEPTED;
   const char *message = ok ? "Ignition cycle countdown requested." :
@@ -920,6 +1021,7 @@ esp_err_t dashboard_start_cycle_handler(httpd_req_t *request) {
 }
 
 esp_err_t dashboard_abort_handler(httpd_req_t *request) {
+  note_dashboard_activity();
   const auto result = control_app::request_abort();
   const bool ok = result == control_app::RemoteActionResult::ACCEPTED;
   const char *message = ok ? "Abort requested." :
@@ -936,6 +1038,7 @@ esp_err_t dashboard_abort_handler(httpd_req_t *request) {
 }
 
 esp_err_t dashboard_toggle_blower_handler(httpd_req_t *request) {
+  note_dashboard_activity();
   const auto status = control_app::get_status();
   const bool turning_on = status.state == ControlStateId::READY_IDLE;
   const auto result = control_app::request_toggle_blower();
@@ -1239,7 +1342,7 @@ void start_main_server() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = kOtaServerPort;
   config.stack_size = 8192;
-  config.max_uri_handlers = 16;
+  config.max_uri_handlers = 20;
   ESP_ERROR_CHECK(httpd_start(&g_server, &config));
 
   const httpd_uri_t status_uri = {
@@ -1252,6 +1355,12 @@ void start_main_server() {
       .uri = "/",
       .method = HTTP_GET,
       .handler = dashboard_page_handler,
+      .user_ctx = nullptr,
+  };
+  const httpd_uri_t logo_uri = {
+      .uri = kLogoUri,
+      .method = HTTP_GET,
+      .handler = web_ui_logo_handler,
       .user_ctx = nullptr,
   };
   const httpd_uri_t dashboard_status_uri = {
@@ -1296,6 +1405,30 @@ void start_main_server() {
       .handler = settings_handler,
       .user_ctx = nullptr,
   };
+  const httpd_uri_t settings_schema_uri = {
+      .uri = kSettingsSchemaUri,
+      .method = HTTP_GET,
+      .handler = settings_schema_handler,
+      .user_ctx = nullptr,
+  };
+  const httpd_uri_t settings_schema_post_uri = {
+      .uri = kSettingsSchemaUri,
+      .method = HTTP_POST,
+      .handler = settings_schema_post_handler,
+      .user_ctx = nullptr,
+  };
+  const httpd_uri_t cycle_profile_uri = {
+      .uri = kCycleProfileUri,
+      .method = HTTP_GET,
+      .handler = cycle_profile_handler,
+      .user_ctx = nullptr,
+  };
+  const httpd_uri_t cycle_profile_post_uri = {
+      .uri = kCycleProfileUri,
+      .method = HTTP_POST,
+      .handler = cycle_profile_post_handler,
+      .user_ctx = nullptr,
+  };
   const httpd_uri_t settings_fs_uri = {
       .uri = kSettingsFsUri,
       .method = HTTP_POST,
@@ -1310,6 +1443,7 @@ void start_main_server() {
   };
 
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &dashboard_page_uri));
+  ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &logo_uri));
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &dashboard_status_uri));
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &dashboard_beep_uri));
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &dashboard_start_cycle_uri));
@@ -1317,6 +1451,10 @@ void start_main_server() {
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &dashboard_toggle_blower_uri));
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &status_uri));
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &settings_uri));
+  ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &settings_schema_uri));
+  ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &settings_schema_post_uri));
+  ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &cycle_profile_uri));
+  ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &cycle_profile_post_uri));
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &ota_uri));
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &settings_fs_uri));
   ESP_ERROR_CHECK(httpd_register_uri_handler(g_server, &web_ui_fs_uri));
@@ -1405,6 +1543,14 @@ OtaStatus get_status() {
 
 bool maintenance_active() {
   return g_maintenance_active;
+}
+
+bool dashboard_session_active() {
+  if (g_last_dashboard_activity_us == 0) {
+    return false;
+  }
+  const int64_t elapsed_ms = (esp_timer_get_time() - g_last_dashboard_activity_us) / 1000LL;
+  return elapsed_ms >= 0 && elapsed_ms <= static_cast<int64_t>(kDashboardSessionHoldMs);
 }
 
 }  // namespace ota_service

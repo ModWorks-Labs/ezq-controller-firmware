@@ -254,27 +254,73 @@ std::string build_info_text() {
 
 std::string build_settings_text() {
   const auto &settings = config_store::settings();
-  char buffer[384] = {};
+  char buffer[1024] = {};
   snprintf(buffer,
            sizeof(buffer),
+           "sound_volume=%u\n"
+           "audio_enabled=%s\n"
+           "post_cycle_reminder_enabled=%s\n"
+           "automatic_firmware_updates_enabled=%s\n"
+           "offline_dashboard_ap_enabled=%s\n"
+           "dashboard_prevents_sleep_enabled=%s\n"
            "idle_sleep_timeout_ms=%lu\n"
-           "abort_blower_duration_ms=%lu\n"
+           "glow_plug_max_throttle_percent=%u\n"
+           "glow_plug_ramp_enabled=%s\n"
+           "glow_plug_initial_throttle_percent=%u\n"
+           "glow_plug_ramp_time_ms=%lu\n"
+           "glow_plug_pwm_frequency_hz=%lu\n"
+           "fan_min_throttle_percent=%u\n"
+           "fan_max_throttle_percent=%u\n"
+           "fan_pwm_frequency_hz=%lu\n"
+           "fan_wake_pulse_ms=%lu\n"
+           "fan_post_cycle_hold_enabled=%s\n"
+           "fan_post_cycle_hold_throttle_percent=%u\n"
+           "fan_post_cycle_hold_duration_ms=%lu\n"
            "temp_fault_high_c=%.1f\n"
            "temp_fault_low_c=%.1f\n"
            "battery_warning_v=%.2f\n"
            "battery_fault_v=%.2f\n"
-           "sound_volume=%u\n"
-           "button_press_beep_enabled=%s\n"
-           "active_profile=%s\n",
+           "battery_warning_enabled=%s\n"
+           "sensor_fault_detection_enabled=%s\n"
+           "fault_latch_enabled=%s\n"
+           "abort_blower_duration_ms=%lu\n"
+           "countdown_total_ms=%lu\n"
+           "countdown_step_ms=%lu\n"
+           "cycle_total_duration_ms=%lu\n"
+           "post_cycle_reminder_repeat_ms=%lu\n"
+           "post_cycle_reminder_tone_duration_ms=%lu\n",
+           static_cast<unsigned>(settings.sound_volume),
+           settings.audio_enabled ? "true" : "false",
+           settings.post_cycle_reminder_enabled ? "true" : "false",
+           settings.automatic_firmware_updates_enabled ? "true" : "false",
+           settings.offline_dashboard_ap_enabled ? "true" : "false",
+           settings.dashboard_prevents_sleep_enabled ? "true" : "false",
            static_cast<unsigned long>(settings.idle_sleep_timeout_ms),
-           static_cast<unsigned long>(settings.abort_blower_duration_ms),
+           static_cast<unsigned>(settings.glow_plug_max_throttle_percent),
+           settings.glow_plug_ramp_enabled ? "true" : "false",
+           static_cast<unsigned>(settings.glow_plug_initial_throttle_percent),
+           static_cast<unsigned long>(settings.glow_plug_ramp_time_ms),
+           static_cast<unsigned long>(settings.glow_plug_pwm_frequency_hz),
+           static_cast<unsigned>(settings.fan_min_throttle_percent),
+           static_cast<unsigned>(settings.fan_max_throttle_percent),
+           static_cast<unsigned long>(settings.fan_pwm_frequency_hz),
+           static_cast<unsigned long>(settings.fan_wake_pulse_ms),
+           settings.fan_post_cycle_hold_enabled ? "true" : "false",
+           static_cast<unsigned>(settings.fan_post_cycle_hold_throttle_percent),
+           static_cast<unsigned long>(settings.fan_post_cycle_hold_duration_ms),
            static_cast<double>(settings.temp_fault_high_c),
            static_cast<double>(settings.temp_fault_low_c),
            static_cast<double>(settings.battery_warning_v),
            static_cast<double>(settings.battery_fault_low_v),
-           static_cast<unsigned>(settings.sound_volume),
-           settings.button_press_beep_enabled ? "true" : "false",
-           settings.active_profile_name.data());
+           settings.battery_warning_enabled ? "true" : "false",
+           settings.sensor_fault_detection_enabled ? "true" : "false",
+           settings.fault_latch_enabled ? "true" : "false",
+           static_cast<unsigned long>(settings.abort_blower_duration_ms),
+           static_cast<unsigned long>(settings.countdown_total_ms),
+           static_cast<unsigned long>(settings.countdown_step_ms),
+           static_cast<unsigned long>(settings.cycle_total_duration_ms),
+           static_cast<unsigned long>(settings.post_cycle_reminder_repeat_ms),
+           static_cast<unsigned long>(settings.post_cycle_reminder_tone_duration_ms));
   return std::string(buffer);
 }
 

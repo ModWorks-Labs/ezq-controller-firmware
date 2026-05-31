@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 
+#include "config_store.h"
 #include "debug_console.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
@@ -18,7 +19,7 @@ constexpr char kTag[] = "output_control";
 constexpr ledc_mode_t kMode = LEDC_LOW_SPEED_MODE;
 constexpr ledc_timer_bit_t kTimerBits = LEDC_TIMER_10_BIT;
 constexpr uint8_t kLedBrightness = 32;
-constexpr uint32_t kBuzzerDuty = 256;
+constexpr uint32_t kBuzzerDutyHigh = 256;
 constexpr uint32_t kBuzzerFreq = 2730;
 constexpr uint32_t kBuzzerNoteLow = 2460;
 constexpr uint32_t kBuzzerNoteMid = 2730;
@@ -30,10 +31,7 @@ constexpr ledc_channel_t kBuzzerChannel = LEDC_CHANNEL_0;
 constexpr ledc_channel_t kGlowChannel = LEDC_CHANNEL_1;
 constexpr ledc_channel_t kFanChannel = LEDC_CHANNEL_2;
 
-constexpr uint32_t kGlowFreq = 20000;
-constexpr uint32_t kFanFreq = 20000;
 constexpr uint32_t kMaxDuty10Bit = (1U << 10) - 1U;
-constexpr uint32_t kFanWakePulseMs = 10;
 
 struct ToneStep {
   uint32_t frequency_hz;
@@ -61,6 +59,8 @@ ToneSequence g_tones;
 led_strip_handle_t g_led_strip = nullptr;
 bool g_led_available = false;
 
+void buzzer_off();
+
 struct FanThrottleMapPoint {
   float commanded_percent;
   float effective_percent;
@@ -74,6 +74,27 @@ constexpr FanThrottleMapPoint kFanThrottleMap[] = {
 
 float clamp_percent(float value) {
   return std::clamp(value, 0.0f, 100.0f);
+}
+
+const config_store::Settings &settings() {
+  return config_store::settings();
+}
+
+bool audio_active() {
+  return settings().audio_enabled && settings().sound_volume > 0;
+}
+
+uint32_t buzzer_duty() {
+  switch (settings().sound_volume) {
+    case 3:
+      return kBuzzerDutyHigh;
+    case 2:
+      return kBuzzerDutyHigh * 3U / 4U;
+    case 1:
+      return kBuzzerDutyHigh / 2U;
+    default:
+      return 0U;
+  }
 }
 
 bool check_esp(const char *step, esp_err_t err) {
@@ -127,6 +148,10 @@ void write_buzzer(uint32_t frequency_hz, uint32_t duty) {
   if (!g_initialized) {
     return;
   }
+  if (!audio_active() || duty == 0U) {
+    buzzer_off();
+    return;
+  }
   ledc_set_freq(kMode, LEDC_TIMER_0, frequency_hz);
   ledc_set_duty(kMode, kBuzzerChannel, duty);
   ledc_update_duty(kMode, kBuzzerChannel);
@@ -171,6 +196,7 @@ void write_fan(float requested_percent) {
   if (!g_initialized) {
     return;
   }
+  ledc_set_freq(kMode, LEDC_TIMER_2, static_cast<uint32_t>(settings().fan_pwm_frequency_hz));
   if (requested_percent <= 0.0f) {
     ledc_stop(kMode, kFanChannel, 0);
     gpio_set_level(static_cast<gpio_num_t>(pinout::kBlowerFanDrivePwmPin), 0);
@@ -185,6 +211,7 @@ void write_glow(float requested_percent) {
   if (!g_initialized) {
     return;
   }
+  ledc_set_freq(kMode, LEDC_TIMER_1, static_cast<uint32_t>(settings().glow_plug_pwm_frequency_hz));
   const uint32_t duty =
       static_cast<uint32_t>((clamp_percent(requested_percent) / 100.0f) * kMaxDuty10Bit);
   ledc_set_duty(kMode, kGlowChannel, duty);
@@ -206,7 +233,7 @@ void queue_sequence(const std::initializer_list<ToneStep> &steps) {
 }
 
 void start_tone(const ToneStep &step, uint32_t now_ms) {
-  write_buzzer(step.frequency_hz, kBuzzerDuty);
+  write_buzzer(step.frequency_hz, buzzer_duty());
   g_tones.playing = true;
   g_tones.in_gap = false;
   g_tones.deadline_ms = now_ms + step.duration_ms;
@@ -269,9 +296,9 @@ void update_reminder(uint32_t now_ms) {
     if (now_ms < g_tones.reminder_deadline_ms) {
       return;
     }
-    write_buzzer(kBuzzerNoteMid, kBuzzerDuty);
+    write_buzzer(kBuzzerNoteMid, buzzer_duty());
     g_tones.reminder_playing = true;
-    g_tones.reminder_deadline_ms = now_ms + 450;
+    g_tones.reminder_deadline_ms = now_ms + settings().post_cycle_reminder_tone_duration_ms;
     return;
   }
 
@@ -281,7 +308,7 @@ void update_reminder(uint32_t now_ms) {
 
   buzzer_off();
   g_tones.reminder_playing = false;
-  g_tones.reminder_deadline_ms = now_ms + 15000;
+  g_tones.reminder_deadline_ms = now_ms + settings().post_cycle_reminder_repeat_ms;
 }
 
 void render_indicator(uint32_t now_ms) {
@@ -370,14 +397,14 @@ bool init() {
 
   ledc_timer_config_t glow_timer = buzzer_timer;
   glow_timer.timer_num = LEDC_TIMER_1;
-  glow_timer.freq_hz = static_cast<int>(kGlowFreq);
+  glow_timer.freq_hz = static_cast<int>(settings().glow_plug_pwm_frequency_hz);
   if (!check_esp("ledc_timer_config(glow)", ledc_timer_config(&glow_timer))) {
     return false;
   }
 
   ledc_timer_config_t fan_timer = buzzer_timer;
   fan_timer.timer_num = LEDC_TIMER_2;
-  fan_timer.freq_hz = static_cast<int>(kFanFreq);
+  fan_timer.freq_hz = static_cast<int>(settings().fan_pwm_frequency_hz);
   if (!check_esp("ledc_timer_config(fan)", ledc_timer_config(&fan_timer))) {
     return false;
   }
@@ -471,12 +498,16 @@ void set_fan_percent(float percent) {
     g_fan_percent = 0.0f;
     return;
   }
-  const float clamped = clamp_percent(percent);
+  float clamped = clamp_percent(percent);
+  if (clamped > 0.0f) {
+    clamped = std::max(clamped, static_cast<float>(settings().fan_min_throttle_percent));
+  }
+  clamped = std::min(clamped, static_cast<float>(settings().fan_max_throttle_percent));
   const bool waking = g_fan_percent <= 0.0f && clamped > 0.0f;
   if (waking) {
     ledc_set_duty(kMode, kFanChannel, kMaxDuty10Bit);
     ledc_update_duty(kMode, kFanChannel);
-    vTaskDelay(pdMS_TO_TICKS(kFanWakePulseMs));
+    vTaskDelay(pdMS_TO_TICKS(settings().fan_wake_pulse_ms));
   }
   g_fan_percent = clamped;
   write_fan(clamped);
@@ -499,7 +530,8 @@ void set_glow_percent(float percent) {
     g_glow_percent = 0.0f;
     return;
   }
-  g_glow_percent = clamp_percent(percent);
+  g_glow_percent =
+      std::min(clamp_percent(percent), static_cast<float>(settings().glow_plug_max_throttle_percent));
   write_glow(g_glow_percent);
 }
 
@@ -512,48 +544,78 @@ bool glow_active() {
 }
 
 void play_startup_jingle() {
-  queue_sequence({{kBuzzerNoteMid, 95, 28},
-                  {kBuzzerNoteHigh, 95, 28},
-                  {kBuzzerNoteBright, 170, 0}});
+  if (!audio_active()) {
+    return;
+  }
+  queue_sequence({{kBuzzerNoteMid, 95, 28}, {kBuzzerNoteHigh, 95, 28}, {kBuzzerNoteBright, 170, 0}});
 }
 
 void play_button_press() {
+  if (!audio_active()) {
+    return;
+  }
   queue_sequence({{kBuzzerFreq, 35, 0}});
 }
 
 void play_mode_entry_beep() {
+  if (!audio_active()) {
+    return;
+  }
   queue_sequence({{kBuzzerNoteHigh, 75, 0}});
 }
 
 void play_mode_exit_beep() {
+  if (!audio_active()) {
+    return;
+  }
   queue_sequence({{kBuzzerNoteLow, 75, 0}});
 }
 
 void play_cycle_armed_beeps() {
+  if (!audio_active()) {
+    return;
+  }
   queue_sequence({{kBuzzerNoteMid, 65, 50}, {kBuzzerNoteHigh, 65, 50}, {kBuzzerNoteBright, 85, 0}});
 }
 
 void play_countdown_beep() {
+  if (!audio_active()) {
+    return;
+  }
   queue_sequence({{kBuzzerNoteMid, 80, 0}});
 }
 
 void play_countdown_go_beep() {
+  if (!audio_active()) {
+    return;
+  }
   queue_sequence({{kBuzzerNoteBright, 120, 0}});
 }
 
 void play_phase_complete_chirp() {
+  if (!audio_active()) {
+    return;
+  }
   queue_sequence({{kBuzzerNoteMid, 75, 25}, {kBuzzerNoteHigh, 105, 0}});
 }
 
 void play_cycle_complete_jingle() {
+  if (!audio_active()) {
+    return;
+  }
   queue_sequence(
       {{kBuzzerNoteLow, 100, 35}, {kBuzzerNoteMid, 120, 35}, {kBuzzerNoteHigh, 150, 40}, {kBuzzerNoteBright, 220, 0}});
 }
 
 void start_post_cycle_reminder() {
+  if (!settings().audio_enabled || !settings().post_cycle_reminder_enabled || settings().sound_volume == 0) {
+    g_tones.reminder_enabled = false;
+    g_tones.reminder_playing = false;
+    return;
+  }
   g_tones.reminder_enabled = true;
   g_tones.reminder_playing = false;
-  g_tones.reminder_deadline_ms = 15000;
+  g_tones.reminder_deadline_ms = settings().post_cycle_reminder_repeat_ms;
 }
 
 void stop_post_cycle_reminder() {
@@ -563,6 +625,9 @@ void stop_post_cycle_reminder() {
 }
 
 void play_fault_pattern() {
+  if (!audio_active()) {
+    return;
+  }
   stop_post_cycle_reminder();
   queue_sequence({{kBuzzerNoteLow, 260, 90},
                   {kBuzzerNoteFault, 260, 90},

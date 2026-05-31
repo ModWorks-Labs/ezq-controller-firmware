@@ -45,6 +45,7 @@ bool test_and_store_credentials(const std::string &ssid,
                                 const std::string &password,
                                 std::string &message);
 bool clear_credentials(std::string &message);
+void apply_runtime_settings();
 void suspend_for_sleep();
 void resume_after_sleep();
 WifiStatus get_status();

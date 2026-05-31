@@ -1,16 +1,381 @@
 {
-  "state_handling": {
-    "idle_sleep_timeout_ms": 240000
-  },
-  "safety": {
-    "temp_fault_high_c": 90.0,
-    "temp_fault_low_c": 85.0,
-    "battery_warning_v": 10.5,
-    "battery_fault_v": 9.6,
-    "abort_blower_duration_ms": 15000
-  },
-  "ui": {
-    "sound_volume": 2,
-    "button_press_beep_enabled": true
-  }
+  "schema_version": 1,
+  "categories": [
+    {
+      "id": "audio_alerts",
+      "menu_name": "Audio Alerts",
+      "settings": [
+        {
+          "key": "sound_volume",
+          "menu_name": "Sound Volume",
+          "input_type": "uint8",
+          "unit": "level",
+          "value": 2,
+          "default_value": 2,
+          "accepted_range": {
+            "min": 0,
+            "max": 3
+          }
+        },
+        {
+          "key": "audio_enabled",
+          "menu_name": "Audio Enabled",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        },
+        {
+          "key": "post_cycle_reminder_enabled",
+          "menu_name": "Post Cycle Reminder Enabled",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        }
+      ]
+    },
+    {
+      "id": "connectivity",
+      "menu_name": "Connectivity",
+      "settings": [
+        {
+          "key": "automatic_firmware_updates_enabled",
+          "menu_name": "Automatic Firmware Updates",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        },
+        {
+          "key": "offline_dashboard_ap_enabled",
+          "menu_name": "Offline Dashboard AP",
+          "input_type": "bool",
+          "value": false,
+          "default_value": false
+        },
+        {
+          "key": "dashboard_prevents_sleep_enabled",
+          "menu_name": "Dashboard Prevents Sleep",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        }
+      ]
+    },
+    {
+      "id": "state_handling",
+      "menu_name": "State Handling",
+      "settings": [
+        {
+          "key": "idle_sleep_timeout_ms",
+          "menu_name": "Idle Sleep Timeout",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 240000,
+          "default_value": 240000,
+          "accepted_range": {
+            "min": 0,
+            "max": 86400000
+          }
+        }
+      ]
+    },
+    {
+      "id": "glow_plug",
+      "menu_name": "Glow Plug",
+      "settings": [
+        {
+          "key": "glow_plug_max_throttle_percent",
+          "menu_name": "Maximum Throttle",
+          "input_type": "uint8",
+          "unit": "%",
+          "value": 100,
+          "default_value": 100,
+          "accepted_range": {
+            "min": 0,
+            "max": 100
+          }
+        },
+        {
+          "key": "glow_plug_ramp_enabled",
+          "menu_name": "Ramp Enabled",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        },
+        {
+          "key": "glow_plug_initial_throttle_percent",
+          "menu_name": "Initial Throttle",
+          "input_type": "uint8",
+          "unit": "%",
+          "value": 65,
+          "default_value": 65,
+          "accepted_range": {
+            "min": 0,
+            "max": 100
+          }
+        },
+        {
+          "key": "glow_plug_ramp_time_ms",
+          "menu_name": "Ramp Time",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 10000,
+          "default_value": 10000,
+          "accepted_range": {
+            "min": 0,
+            "max": 30000
+          }
+        },
+        {
+          "key": "glow_plug_pwm_frequency_hz",
+          "menu_name": "PWM Frequency",
+          "input_type": "uint32",
+          "unit": "Hz",
+          "value": 20000,
+          "default_value": 20000,
+          "accepted_range": {
+            "min": 100,
+            "max": 80000
+          }
+        }
+      ]
+    },
+    {
+      "id": "fan",
+      "menu_name": "Fan",
+      "settings": [
+        {
+          "key": "fan_min_throttle_percent",
+          "menu_name": "Minimum Throttle",
+          "input_type": "uint8",
+          "unit": "%",
+          "value": 5,
+          "default_value": 5,
+          "accepted_range": {
+            "min": 0,
+            "max": 100
+          }
+        },
+        {
+          "key": "fan_max_throttle_percent",
+          "menu_name": "Maximum Throttle",
+          "input_type": "uint8",
+          "unit": "%",
+          "value": 100,
+          "default_value": 100,
+          "accepted_range": {
+            "min": 0,
+            "max": 100
+          }
+        },
+        {
+          "key": "fan_pwm_frequency_hz",
+          "menu_name": "PWM Frequency",
+          "input_type": "uint32",
+          "unit": "Hz",
+          "value": 20000,
+          "default_value": 20000,
+          "accepted_range": {
+            "min": 100,
+            "max": 80000
+          }
+        },
+        {
+          "key": "fan_wake_pulse_ms",
+          "menu_name": "Wake Pulse",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 10,
+          "default_value": 10,
+          "accepted_range": {
+            "min": 0,
+            "max": 500
+          }
+        },
+        {
+          "key": "fan_post_cycle_hold_enabled",
+          "menu_name": "Post Cycle Hold Enabled",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        },
+        {
+          "key": "fan_post_cycle_hold_throttle_percent",
+          "menu_name": "Post Cycle Hold Throttle",
+          "input_type": "uint8",
+          "unit": "%",
+          "value": 50,
+          "default_value": 50,
+          "accepted_range": {
+            "min": 0,
+            "max": 100
+          }
+        },
+        {
+          "key": "fan_post_cycle_hold_duration_ms",
+          "menu_name": "Post Cycle Hold Duration",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 180000,
+          "default_value": 180000,
+          "accepted_range": {
+            "min": 0,
+            "max": 900000
+          }
+        }
+      ]
+    },
+    {
+      "id": "fault_detection",
+      "menu_name": "Fault Detection",
+      "settings": [
+        {
+          "key": "temp_fault_high_c",
+          "menu_name": "Upper Fault Temp",
+          "input_type": "float",
+          "unit": "C",
+          "value": 90.0,
+          "default_value": 90.0,
+          "accepted_range": {
+            "min": 0.0,
+            "max": 150.0
+          }
+        },
+        {
+          "key": "temp_fault_low_c",
+          "menu_name": "Lower Fault Temp",
+          "input_type": "float",
+          "unit": "C",
+          "value": 85.0,
+          "default_value": 85.0,
+          "accepted_range": {
+            "min": 0.0,
+            "max": 150.0
+          }
+        },
+        {
+          "key": "battery_warning_v",
+          "menu_name": "Battery Warning Voltage",
+          "input_type": "float",
+          "unit": "V",
+          "value": 10.5,
+          "default_value": 10.5,
+          "accepted_range": {
+            "min": 0.0,
+            "max": 24.0
+          }
+        },
+        {
+          "key": "battery_fault_v",
+          "menu_name": "Battery Fault Voltage",
+          "input_type": "float",
+          "unit": "V",
+          "value": 9.6,
+          "default_value": 9.6,
+          "accepted_range": {
+            "min": 0.0,
+            "max": 24.0
+          }
+        },
+        {
+          "key": "battery_warning_enabled",
+          "menu_name": "Battery Warning Enabled",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        },
+        {
+          "key": "sensor_fault_detection_enabled",
+          "menu_name": "Sensor Fault Detection Enabled",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        },
+        {
+          "key": "fault_latch_enabled",
+          "menu_name": "Fault Latch Enabled",
+          "input_type": "bool",
+          "value": true,
+          "default_value": true
+        }
+      ]
+    },
+    {
+      "id": "cycle_runtime",
+      "menu_name": "Cycle Runtime",
+      "settings": [
+        {
+          "key": "abort_blower_duration_ms",
+          "menu_name": "Abort Blower Duration",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 10000,
+          "default_value": 30000,
+          "accepted_range": {
+            "min": 0,
+            "max": 600000
+          }
+        },
+        {
+          "key": "countdown_total_ms",
+          "menu_name": "Countdown Total",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 3000,
+          "default_value": 3000,
+          "accepted_range": {
+            "min": 0,
+            "max": 30000
+          }
+        },
+        {
+          "key": "countdown_step_ms",
+          "menu_name": "Countdown Step",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 1000,
+          "default_value": 1000,
+          "accepted_range": {
+            "min": 100,
+            "max": 10000
+          }
+        },
+        {
+          "key": "cycle_total_duration_ms",
+          "menu_name": "Cycle Total Duration",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 540000,
+          "default_value": 540000,
+          "accepted_range": {
+            "min": 0,
+            "max": 3600000
+          }
+        },
+        {
+          "key": "post_cycle_reminder_repeat_ms",
+          "menu_name": "Reminder Repeat",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 15000,
+          "default_value": 15000,
+          "accepted_range": {
+            "min": 1000,
+            "max": 600000
+          }
+        },
+        {
+          "key": "post_cycle_reminder_tone_duration_ms",
+          "menu_name": "Reminder Tone Duration",
+          "input_type": "uint32",
+          "unit": "ms",
+          "value": 450,
+          "default_value": 450,
+          "accepted_range": {
+            "min": 50,
+            "max": 10000
+          }
+        }
+      ]
+    }
+  ]
 }

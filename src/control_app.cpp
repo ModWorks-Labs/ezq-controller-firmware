@@ -120,14 +120,14 @@ void tick() {
   }
   g_last_tick_us = now_us;
 
-  sensor_monitor::update(now_ms);
-
   if (!config_store::init()) {
     g_machine.raise_fault(ControlFaultKind::INIT_FAILURE);
     const auto snapshot = sensor_monitor::snapshot();
     g_machine.tick(now_ms, config_store::settings(), config_store::active_profile(), snapshot);
     return;
   }
+
+  sensor_monitor::update(now_ms, config_store::settings());
 
   g_machine.tick(now_ms,
                  config_store::settings(),

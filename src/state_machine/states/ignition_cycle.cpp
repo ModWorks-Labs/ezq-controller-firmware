@@ -7,11 +7,6 @@
 namespace state_machine {
 namespace {
 
-constexpr uint32_t kCountdownTotalMs = 3000;
-constexpr uint32_t kCountdownStepMs = 1000;
-constexpr uint32_t kPostCycleHoldDurationMs = 180000;
-constexpr float kPostCycleFanThrottlePercent = 50.0f;
-
 float clamp_percent(float value) {
   return std::clamp(value, 0.0f, 100.0f);
 }
@@ -71,11 +66,15 @@ void apply_profile(const config_store::IgnitionProfile &profile, uint32_t elapse
 void start_post_cycle(StateContext &context) {
   context.machine.ignition_phase = IgnitionPhase::POST_CYCLE_HOLD;
   context.machine.phase_entry_ms = context.now_ms;
-  context.machine.has_total_ms = true;
-  context.machine.total_ms = kPostCycleHoldDurationMs;
+  context.machine.has_total_ms = context.settings.fan_post_cycle_hold_enabled;
+  context.machine.total_ms = context.settings.fan_post_cycle_hold_duration_ms;
   output_control::set_indicator(output_control::Indicator::POST_CYCLE);
   output_control::set_glow_off();
-  output_control::set_fan_percent(kPostCycleFanThrottlePercent);
+  if (context.settings.fan_post_cycle_hold_enabled) {
+    output_control::set_fan_percent(context.settings.fan_post_cycle_hold_throttle_percent);
+  } else {
+    output_control::set_fan_off();
+  }
   output_control::play_cycle_complete_jingle();
   output_control::start_post_cycle_reminder();
 }
@@ -86,7 +85,7 @@ void enter(StateContext &context) {
   context.machine.phase_entry_ms = context.now_ms;
   context.machine.countdown_beeps_sent = 0;
   context.machine.has_total_ms = true;
-  context.machine.total_ms = kCountdownTotalMs;
+  context.machine.total_ms = context.settings.countdown_total_ms;
   output_control::set_indicator(output_control::Indicator::CYCLE_READY);
   output_control::play_cycle_armed_beeps();
   output_control::set_glow_off();
@@ -106,16 +105,17 @@ void update_countdown(StateContext &context) {
   if (context.machine.countdown_beeps_sent == 0) {
     output_control::play_countdown_beep();
     context.machine.countdown_beeps_sent = 1;
-  } else if (context.machine.countdown_beeps_sent == 1 && elapsed_ms >= kCountdownStepMs) {
+  } else if (context.machine.countdown_beeps_sent == 1 &&
+             elapsed_ms >= context.settings.countdown_step_ms) {
     output_control::play_countdown_beep();
     context.machine.countdown_beeps_sent = 2;
   } else if (context.machine.countdown_beeps_sent == 2 &&
-             elapsed_ms >= (2 * kCountdownStepMs)) {
+             elapsed_ms >= (2 * context.settings.countdown_step_ms)) {
     output_control::play_countdown_go_beep();
     context.machine.countdown_beeps_sent = 3;
   }
 
-  if (elapsed_ms >= kCountdownTotalMs) {
+  if (elapsed_ms >= context.settings.countdown_total_ms) {
     context.machine.ignition_phase = IgnitionPhase::ACTIVE;
     context.machine.phase_entry_ms = context.now_ms;
     context.machine.has_total_ms = true;
@@ -151,7 +151,9 @@ void update_post_cycle(StateContext &context) {
     }
   }
 
-  if ((context.now_ms - context.machine.phase_entry_ms) >= kPostCycleHoldDurationMs) {
+  if (!context.settings.fan_post_cycle_hold_enabled ||
+      (context.now_ms - context.machine.phase_entry_ms) >=
+          context.settings.fan_post_cycle_hold_duration_ms) {
     context.machine.request_transition(StateId::READY_IDLE);
   }
 }

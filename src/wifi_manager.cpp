@@ -4,6 +4,7 @@
 #include <array>
 #include <cstring>
 
+#include "config_store.h"
 #include "debug_console.h"
 #include "dev_config.h"
 #include "esp_event.h"
@@ -50,6 +51,7 @@ esp_netif_t *g_sta_netif = nullptr;
 esp_netif_t *g_ap_netif = nullptr;
 bool g_sleep_suspended = false;
 bool g_sta_should_connect = false;
+bool g_offline_dashboard_ap_enabled = false;
 
 std::string auth_mode_name(wifi_auth_mode_t auth_mode) {
   switch (auth_mode) {
@@ -302,6 +304,9 @@ void init() {
     return;
   }
 
+  config_store::init();
+  g_offline_dashboard_ap_enabled = config_store::settings().offline_dashboard_ap_enabled;
+
   const esp_err_t nvs_err = nvs_flash_init();
   if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
     ESP_ERROR_CHECK(nvs_flash_erase());
@@ -332,7 +337,11 @@ void init() {
 
   if (g_status.credentials_stored) {
     configure_station(g_status.configured_ssid, password);
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(g_offline_dashboard_ap_enabled ? WIFI_MODE_APSTA : WIFI_MODE_STA));
+    if (g_offline_dashboard_ap_enabled) {
+      configure_access_point();
+      g_status.ap_active = true;
+    }
     g_status.mode = WifiMode::STA;
     g_sta_should_connect = true;
     DEV_LOGI(kTag, "Stored Wi-Fi credentials found for SSID '%s'", g_status.configured_ssid.c_str());
@@ -351,6 +360,32 @@ void init() {
 
   ESP_ERROR_CHECK(esp_wifi_start());
   g_status.initialized = true;
+}
+
+void apply_runtime_settings() {
+  if (!g_status.initialized || !g_status.credentials_stored || g_status.mode != WifiMode::STA) {
+    return;
+  }
+
+  const bool desired_offline_ap = config_store::settings().offline_dashboard_ap_enabled;
+  if (desired_offline_ap == g_offline_dashboard_ap_enabled) {
+    return;
+  }
+
+  g_offline_dashboard_ap_enabled = desired_offline_ap;
+  if (desired_offline_ap) {
+    configure_access_point();
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    g_status.ap_active = true;
+    DEV_LOGI(kTag, "Offline dashboard AP enabled");
+    return;
+  }
+
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+  g_status.ap_active = false;
+  g_status.ap_ssid.clear();
+  g_status.ap_ip_address.clear();
+  DEV_LOGI(kTag, "Offline dashboard AP disabled");
 }
 
 bool provisioning_required() {

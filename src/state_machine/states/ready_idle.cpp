@@ -59,6 +59,7 @@ void update(StateContext &context) {
 
   if (!console_connected &&
       !ota_service::maintenance_active() &&
+      !(context.settings.dashboard_prevents_sleep_enabled && ota_service::dashboard_session_active()) &&
       !button_input::is_pressed() &&
       (context.now_ms - context.machine.state_entry_ms) >= context.settings.idle_sleep_timeout_ms) {
     context.machine.request_transition(StateId::SLEEP_IDLE);

@@ -15,9 +15,9 @@ struct Snapshot {
   float battery_v;
 };
 
-bool init();
 bool initialized();
-void update(uint32_t now_ms);
+bool init(const config_store::Settings &settings);
+void update(uint32_t now_ms, const config_store::Settings &settings);
 Snapshot snapshot();
 ControlFaultKind evaluate_fault(const config_store::Settings &settings);
 

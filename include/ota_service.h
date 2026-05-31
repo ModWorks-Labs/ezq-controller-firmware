@@ -16,5 +16,6 @@ void init();
 void poll();
 OtaStatus get_status();
 bool maintenance_active();
+bool dashboard_session_active();
 
 }  // namespace ota_service

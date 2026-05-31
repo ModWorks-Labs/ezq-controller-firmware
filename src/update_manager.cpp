@@ -22,6 +22,7 @@
 #include "esp_netif_sntp.h"
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "unit_identity.h"
@@ -280,6 +281,11 @@ bool fetch_url_to_string(const std::string &url, std::string &body, std::string 
   return true;
 }
 
+std::string add_cache_buster(const std::string &url) {
+  const char separator = url.find('?') == std::string::npos ? '?' : '&';
+  return url + separator + "cb=" + std::to_string(static_cast<long long>(esp_timer_get_time()));
+}
+
 bool parse_target_object(cJSON *object, const char *selector, UpdateTarget &target, std::string &message) {
   if (object == nullptr || !cJSON_IsObject(object)) {
     return false;
@@ -497,7 +503,8 @@ CheckDecision check_for_update() {
     return CheckDecision::ERROR;
   }
 
-  if (!fetch_url_to_string(g_status.manifest_url, manifest_body, message)) {
+  const std::string manifest_request_url = add_cache_buster(g_status.manifest_url);
+  if (!fetch_url_to_string(manifest_request_url, manifest_body, message)) {
     set_result("manifest_fetch_failed", message);
     return CheckDecision::ERROR;
   }

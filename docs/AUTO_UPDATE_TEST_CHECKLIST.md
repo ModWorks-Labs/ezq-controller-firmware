@@ -21,10 +21,10 @@ Use this after release automation and cloud OTA are working to validate reliabil
 
 ## Offline / Network Failure
 
-- [ ] Boot with Wi-Fi unavailable
-- [ ] Confirm normal startup still reaches `READY_IDLE`
-- [ ] Restore Wi-Fi and reboot
-- [ ] Confirm update works afterward
+- [x] Boot with Wi-Fi unavailable
+- [x] Confirm normal startup still reaches `READY_IDLE`
+- [x] Restore Wi-Fi and reboot
+- [x] Confirm update works afterward
 
 ## Manifest Failure
 

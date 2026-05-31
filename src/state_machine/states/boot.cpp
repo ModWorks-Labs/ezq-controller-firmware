@@ -33,7 +33,7 @@ void update(StateContext &context) {
     DEV_LOGI(kTag, "output_control=%s", outputs_ok ? "ok" : "fail");
     const bool buttons_ok = button_input::init();
     DEV_LOGI(kTag, "button_input=%s", buttons_ok ? "ok" : "fail");
-    const bool sensors_ok = sensor_monitor::init();
+    const bool sensors_ok = sensor_monitor::init(config_store::settings());
     DEV_LOGI(kTag, "sensor_monitor=%s", sensors_ok ? "ok" : "fail");
 
     if (!config_ok || !outputs_ok || !buttons_ok) {
@@ -61,6 +61,14 @@ void update(StateContext &context) {
   const auto wifi = wifi_manager::get_status();
   if (!wifi.credentials_stored || wifi.mode == wifi_manager::WifiMode::PROVISION_AP) {
     DEV_LOGI(kTag, "Skipping cloud update check: Wi-Fi is not provisioned.");
+    DEV_LOGI(kTag, "BOOT complete; entering READY_IDLE");
+    output_control::play_startup_jingle();
+    context.machine.request_transition(StateId::READY_IDLE);
+    return;
+  }
+
+  if (!context.settings.automatic_firmware_updates_enabled) {
+    DEV_LOGI(kTag, "Skipping cloud update check: automatic firmware updates are disabled.");
     DEV_LOGI(kTag, "BOOT complete; entering READY_IDLE");
     output_control::play_startup_jingle();
     context.machine.request_transition(StateId::READY_IDLE);
